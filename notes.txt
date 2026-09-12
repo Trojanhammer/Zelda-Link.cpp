@@ -263,4 +263,11 @@ UNIQUE POINTER
 Any pointer (raw or unique) have full access to the object.lets say an object have two pointers.one unique(MasterSword), one raw(EquippedWeapon).Both has same value
 Unique just have one more responsibility which is to delete the object and its own when object is out of scope.Raw pointers is not responsible
 
-So MainPlayer->EquippedWeapon()->Attack() still valid
+So MainPlayer-> EquippedWeapon ->Attack() still valid
+
+
+-----------------------------------------------
+std::cin >> choice problem without safety check.
+-----------------------------------------------
+
+If choice receives "abc" or string, cin will panic and silently failed so it tells C++ to skip cin part so the game code will enter else block and looping infinitely
