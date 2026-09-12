@@ -24,7 +24,13 @@ int main(){
         std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
         << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
         // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
-        std::cin >> choice;
+        
+        // Check if the choice gets int
+        if (!(std::cin >> choice)){
+            std::cin.clear(); // Uncrash the cin operator
+            std::cin.ignore(10000,'\n'); // Remove false value
+            continue;
+        }
         
         if (choice == 1 && MasterSword -> durability > 0){
             MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
@@ -41,7 +47,11 @@ int main(){
 
         std::cout << "Choose Monster to Attack: 1." << Enemy1 -> name << " " << Enemy1 -> health << " left ." << " 2. " << Enemy2 -> name << " " << Enemy2 -> health << " left .";
         int enemyChoice;
-        std::cin >> enemyChoice;
+        if(!(std::cin >> enemyChoice)){
+            std::cin.clear();
+            std::cin.ignore(10000,'\n');
+            continue;
+        }
         if (enemyChoice==1 && Enemy1 -> isAlive){
             MainPlayer -> TargetEnemy = Enemy1.get();
         }
