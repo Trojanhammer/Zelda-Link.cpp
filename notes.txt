@@ -1,0 +1,266 @@
+====================================================================
+C++ NOTES
+====================================================================
+
+====================================================================
+1. CODE ORGANIZATION
+====================================================================
+- Always seperate class.h and classimplementation.cpp
+
+
+====================================================================
+2. STACK VS HEAP
+====================================================================
+void add(int x, int y){
+    x+y;
+}
+
+- in c++ or other langguage too, int x and y is created inside stack.once the fx ends, the langguage will automatically clean up the things in stack
+- but creating object (new Enemy()) will be stored in heap.When we create smart pointer to the object, unique_pointer lives in stack while object lives in heap.
+- When fx ends, we dont need to manually add ( delete object ) because smart-pointer automatically delete both (pointer and object).
+
+
+====================================================================
+3. REFERENCES
+====================================================================
+- Reference?
+void add(int &x, 2){ //fx
+    x+2;
+}
+a=4
+add(a) // calling the fx
+
+- memory space named "a" will have nickname of "x" inside this fx, once it ends, the reference dies or gone.
+
+
+====================================================================
+4. REFERENCES VS POINTERS
+====================================================================
+When to use reference vs pointers
+1. Reference cant switch place.once set,cant change it & reference cant be empty.
+2. Pointers can change where it points to. and can have null value.
+
+Use references for :
+// A single player in BOTW (Link)
+void TakeDamageSystem(Player& playerRef, int damage) {
+    playerRef.health -= damage; // Safe, clean, zero chance of a null crash.
+}
+
+Use pointers for :
+// 🎥 A camera tracking system NEEDS a pointer so it can switch targets!
+class GameCamera {
+public:
+    Player* targetPointer = nullptr; // Starts tracking nothing
+
+    void SwitchTarget(Player* newTarget) {
+        targetPointer = newTarget; //  Works! The pointer easily switches to a new address.
+    }
+};
+
+OR Multiplayer system :
+// 🌐 MULTIPLAYER WAY: Players are dynamic, so we use a pointer
+void TakeDamageSystem(Player* playerPtr, int damage) {
+    // ⚠️ CRITICAL SAFETY CHECK: What if the player disconnected the exact
+    // millisecond the bullet hit them? A pointer lets us check for null!
+    if (playerPtr == nullptr) {
+        return; // Exit safely, don't crash the server!
+    }
+
+    playerPtr->health -= damage;
+}
+
+WHY we use pointer to points towards an object?
+- Sharing without duplicating and Changing original data across different systems.
+
+
+====================================================================
+5. CODE EXAMPLE: PASS BY VALUE (BAD) VS PASS BY POINTER (GOOD)
+====================================================================
+
+USE Values (BAD WAY)
+-------------------------------------------------------------------------------------
+#include <iostream>
+#include <string>
+
+class Player {
+public:
+    std::string name = "Link";
+    int health = 100;
+};
+
+// ❌ BAD WAY: Takes a raw Player object (No pointer, no reference)
+void TakeDamageSystem(Player duplicatePlayer, int damage) {
+    // Because there is no pointer, C++ completely CLONES the player in RAM.
+    // 'duplicatePlayer' is a temporary copy!
+    duplicatePlayer.health -= damage;
+    std::cout << "Copy Health inside function: " << duplicatePlayer.health << "\n";
+} // 💥 The copy is instantly deleted here!
+
+int main() {
+    Player realPlayer; // The actual player sitting in memory
+
+    TakeDamageSystem(realPlayer, 20); // Forces C++ to clone the player
+
+    // CRITICAL BUG: The real player's health is STILL 100!
+    std::cout << "Real Player Health in main: " << realPlayer.health << "\n";
+    return 0;
+}
+-------------------------------------------------------------------------------------
+
+USE Pointers
+-------------------------------------------------------------------------------------
+#include <iostream>
+#include <string>
+
+class Player {
+public:
+    std::string name = "Link";
+    int health = 100;
+};
+
+//  THE POINTER WAY: Takes a memory address instead of a whole object
+void TakeDamageSystem(Player* playerPointer, int damage) {
+    // We use the arrow operator (->) to reach down the pointer's address
+    // and modify the REAL object sitting in memory.
+    playerPointer->health -= damage;
+}
+
+int main() {
+    Player realPlayer; // The actual player sitting in memory
+
+    // The ampersand (&) grabs the physical RAM address of 'realPlayer'
+    // We pass that tiny address down into the system
+    TakeDamageSystem(&realPlayer, 20);
+
+    //  SUCCESS! The real player's health is now perfectly updated to 80.
+    std::cout << "Real Player Health in main: " << realPlayer.health << "\n";
+    return 0;
+}
+---------------------------------------------------------------------------------
+
+
+====================================================================
+6. MEMORY & POINTERS DEEP DIVE
+====================================================================
+
+1 byte = 8 bits
+Modern Computer uses 64-bit architecture.
+
+Every single mem address is exactly 64 bits long (8 bytes). Because it is
+hard to read binary like 0111..., debuggers convert it into base-16 (hexadecimal)
+notation, resulting in 16 characters max (64 bits / 4 bits per hex character = 16 chars).
+
+BASE 16 ke BASE 10 macam = 15 base 16 so (16^0 x 5)+ (16^1 x 1) = 21 base 10
+
+Nak senang ingat: Setiap 4 bits binari ditukar kepada 1 chars base-16.
+Contoh: 0x00007ffee3b4a7ac adalah sama sahaja dengan 0x7ffee3b4a7ac
+(sifar di depan dibuang oleh debugger untuk jimat ruang skrin).
+
+Each mem address (box) holds exactly ONE BYTE (8 bits). [Byte-addressable memory]
+
+Integer consumes 4 bytes of memory allocation.
+Example: int a = 5;
+
+In mem (Sistem Little-Endian - laptop moden simpan bahagian kecil dulu):
+- 0x7ffee3b4a7ac (1st box) -> holds 00000101 (base 2) atau 5 (base 16)
+- 0x7ffee3b4a7ad (2nd box) -> holds 00000000 (base 2) atau 0 (base 16)
+- 0x7ffee3b4a7ae (3rd box) -> holds 00000000 (base 2) atau 0 (base 16)
+- 0x7ffee3b4a7af (4th box) -> holds 00000000 (base 2) atau 0 (base 16)
+
+So, the value for 'a' is stored across 4 bytes (4 memory spaces), but
+we access/name it using the FIRST ADDRESS ONLY. A pointer to 'a' (&a)
+will also only store this first address (0x7ffee3b4a7ac).
+
+
+1. POINTER ARITHMETIC (+1 / +2) BERGANTUNG PADA DATA TYPE:
+   Apabila kita buat `pointer + 1`, jarak lompatan alamat memori ditentukan
+   oleh jenis pointer tersebut:
+   - int* (integer pointer) -> `+1` bermaksud lompat 4 bytes (4 boxes).
+   - char* (character pointer) -> `+1` bermaksud lompat 1 byte (1 box).
+
+2. POINTER CASTING:
+   If wants to force jump only one box, have to use:
+   Contoh: `(char*)&a + 1` akan pergi tepat ke alamat kedua (0x7ffee3b4a7ad).
+   Tanpa `(char*)`, C++ akan melompat terus 4 unit ke alamat asing.
+
+
+====================================================================
+7. MEMORY LEAKS
+====================================================================
+A memory leak is when the computer thinks 100% of the RAM is being used,
+but in reality, a lot of it is just unreachable ghost data that the
+program forgot about to delete
+
+8. CLASS VS STRUCTS
+Simply,use structs for small stuff like just group data together while use class for big ones
+In C++, both are nearly identical ,only diff is visibility default
+default for struct is public while class is private
+
+9.C++ inheritance ("private" issue)
+if parent have private : int a;
+when child class inherits it, it will gets its own private and memory box too for A
+BUT in C++, there is safety rules that if wants to initialized that value, always do that in constructor of parent class.
+
+The Parent Class Enforces Rules and "Sanity Checks".Imagine writing a BankAccount parent class. 
+Want to make sure that no account can ever be created with a negative balance or invalid acc number format.
+class BankAccount {
+private:
+    double balance;
+    std::string accountId;
+
+public:
+    BankAccount(double initialBalance, std::string id) {
+        // The parent enforces strict rules here!
+        if (initialBalance < 0) { balance = 0; } // No negative starting money
+        else { balance = initialBalance; }
+        
+        if (id.length() < 5) { accountId = "INVALID"; }
+        else { accountId = id; }
+    }
+};
+Use code with caution.If a child class like SavingsAccount could bypass this and initialize balance and accountId directly in its own constructor, 
+the child programmer might not know about these rules. They could accidentally initialize balance = -99999 or set an empty ID, 
+violating the core logic of how a bank account is supposed to work.
+Even if the child class dont use the private var of parent , memory still will be allocated for priv var for object.
+
+FUN FACT
+
+1. class Player {
+private:
+    std::vector<int> scores; // 🏠 INI KOTAK DALAM RUMAH (Milik objek Player)
+
+public:
+    // 🚚 INI LORI DARI LUAR (incomingScores) yang bawa data masuk
+    // 1. Assignment Method (Wasteful)
+    Player(const std::vector<int>& incomingScores) { 
+        scores = incomingScores; 
+    }
+};
+
+2.  // Initializer List Method (Super-Optimized)
+    Player(const std::vector<int>& incomingScores) : scores(incomingScores) {}
+
+What is the difference?
+as of now,practice using " : " (Initialier List).
+
+Constructor 1 will allocate zero bytes to the scores vector and size of "0' first. After entering "{}", it will ask OS for 4 bytes
+assuming the vector have 4 elements inside incomingScores.this is a waste of energy for RAM.
+Constructor 2 meanwhile when creating an object, before the C++ assigns value of its variable, it will look at the incomingScores terus
+and allocate 4 bytes.
+
+The Truck Analogy 🚚
+-------------------
+If use {} (Assignment): C++ builds a miniature box at the house first. When the delivery truck arrives, 
+it realizes the box is too small, tears it down, and builds a bigger box to fit the shipment.
+
+If use : (Initializer List): C++ checks the truck size before building, builds the exact correct box size on day one, 
+and unloads everything smoothly.
+
+This is not for vector only but for every dynamic object or variable such as String, Vector,List and Object
+----------------
+UNIQUE POINTER
+----------------
+Any pointer (raw or unique) have full access to the object.lets say an object have two pointers.one unique(MasterSword), one raw(EquippedWeapon).Both has same value
+Unique just have one more responsibility which is to delete the object and its own when object is out of scope.Raw pointers is not responsible
+
+So MainPlayer->EquippedWeapon()->Attack() still valid

@@ -1,0 +1,71 @@
+#include "weapon.h"
+#include "Bokobolin.h"
+#include "Stalfos.h"
+#include "Player.h"
+
+#include <memory> // Include the memory header for smart pointers
+#include <iostream> // Include the iostream header for input/output operations
+
+// main fx is the entry point of the program
+int main(){
+    std::ios_base::sync_with_stdio(false); //Optimize text printing(cout) by disconnecting to old C safety checks
+
+    int choice;
+    int loop=4;
+    std::cout << "Game Start";
+    auto MainPlayer= std::make_unique<Player>("Link",100,100,true,nullptr,nullptr);
+    // smart pointers
+    auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
+    auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
+    auto Enemy1 = std::make_unique<Bokobolin>();
+    auto Enemy2 = std::make_unique<Stalfos>();
+    std::cout << "Your name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Enemy1 -> name << " & " << Enemy2 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game";
+    while(loop>0){
+        std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
+        << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
+        // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
+        std::cin >> choice;
+        
+        if (choice == 1 && MasterSword -> durability > 0){
+            MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+            MasterSword -> Equip();
+        }
+        else if (choice == 2 && OcarinaSword -> durability > 0){
+            MainPlayer -> EquippedWeapon = OcarinaSword.get();
+            OcarinaSword -> Equip();
+        }
+        else{
+            std::cout << "Invalid choice, choose again";
+            continue; //restart the while loop again
+        }
+
+        std::cout << "Choose Monster to Attack: 1." << Enemy1 -> name << " " << Enemy1 -> health << " left ." << " 2. " << Enemy2 -> name << " " << Enemy2 -> health << " left .";
+        int enemyChoice;
+        std::cin >> enemyChoice;
+        if (enemyChoice==1 && Enemy1 -> isAlive){
+            MainPlayer -> TargetEnemy = Enemy1.get();
+        }
+        else if (enemyChoice==2 && Enemy2 -> isAlive){
+            MainPlayer -> TargetEnemy = Enemy2.get();
+        }
+        else{
+            continue;
+        }
+        MainPlayer -> EquippedWeapon -> Attack();
+        MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+        loop--;
+        
+
+
+    }
+
+    if(!Enemy1->isAlive && !Enemy2 -> isAlive){
+        std::cout << "You WIN";
+    }
+    else {
+        std::cout << "You LOSE";
+    }
+
+    std::cout << "Game Over";
+}
+//When main fx ends, so smart pointers will automatically delete the objects they point to, so no need to manually delete them.
