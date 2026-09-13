@@ -13,4 +13,5 @@ class Player {
         Enemy* TargetEnemy; 
     public:
         Player(std::string playerName, int playerHealth, int playerMaxHealth, bool playerIsAlive, Weapon* equippedWeapon, Enemy* targetEnemy);
+        void TakeDamage(int damage);
 };
