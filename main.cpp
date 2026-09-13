@@ -5,6 +5,7 @@
 
 #include <memory> // Include the memory header for smart pointers
 #include <iostream> // Include the iostream header for input/output operations
+#include <vector>
 
 // main fx is the entry point of the program
 int main(){
@@ -12,6 +13,8 @@ int main(){
 
     int choice;
     int loop=4;
+    int currentEnemyIndex = 0;
+
     std::cout << "Game Start";
     auto MainPlayer= std::make_unique<Player>("Link",100,100,true,nullptr,nullptr);
     // smart pointers
@@ -19,8 +22,12 @@ int main(){
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
     auto Enemy1 = std::make_unique<Bokobolin>();
     auto Enemy2 = std::make_unique<Stalfos>();
+    std::vector<Enemy*> enemies; // make another raw pointers in vector that points towards each enemy pointers
+    enemies.push_back(Enemy1.get());
+    enemies.push_back(Enemy2.get());
     std::cout << "Your name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Enemy1 -> name << " & " << Enemy2 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game";
     while(loop>0){
+        
         std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
         << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
         // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
@@ -59,17 +66,41 @@ int main(){
             MainPlayer -> TargetEnemy = Enemy2.get();
         }
         else{
+            std::cout << "Invalid";
             continue;
         }
         MainPlayer -> EquippedWeapon -> Attack();
         MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-        loop--;
         
+        //Enemy Turn
 
+        bool anyEnemyLive=false; // Check if any of enemy still alive
+        for (Enemy* e : enemies){
+            if(e->isAlive){
+                anyEnemyLive=true;
+                break;
+            }
+        }
+
+        if (!anyEnemyLive){
+            break; // No living enemy left so break from looping
+        }
+
+        while(!(enemies[currentEnemyIndex] -> isAlive)){ // Search for enemy that still alive
+            currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
+        }
+        MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
+        currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
+
+        if (!(MainPlayer -> isAlive)){
+            break; // Break the loop when player died
+        }
+
+        loop--;
 
     }
 
-    if(!Enemy1->isAlive && !Enemy2 -> isAlive){
+    if(!Enemy1->isAlive && !Enemy2 -> isAlive && MainPlayer ->isAlive){
         std::cout << "You WIN";
     }
     else {

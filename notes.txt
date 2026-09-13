@@ -263,7 +263,7 @@ UNIQUE POINTER
 Any pointer (raw or unique) have full access to the object.lets say an object have two pointers.one unique(MasterSword), one raw(EquippedWeapon).Both has same value
 Unique just have one more responsibility which is to delete the object and its own when object is out of scope.Raw pointers is not responsible
 
-So MainPlayer-> EquippedWeapon ->Attack() still valid
+So MainPlayer -> EquippedWeapon -> Attack() still valid
 
 
 -----------------------------------------------
@@ -271,3 +271,39 @@ std::cin >> choice problem without safety check.
 -----------------------------------------------
 
 If choice receives "abc" or string, cin will panic and silently failed so it tells C++ to skip cin part so the game code will enter else block and looping infinitely
+
+---------------------------------------------
+Parent pointer type vs Child pointer type
+---------------------------------------------
+
+Parent* parent = new Parent();
+Child* child = new Child();
+
+class Parent{
+    public:
+    void A(){
+        std::cout << "Happy Birthday"
+    };
+    virtual void B(){
+        std::cout << " I am parent";
+    }
+}
+
+class Child{
+    public:
+    void B() override {
+        std::cout << " I am Child";
+    }
+    voic C(){
+        std::cout << "hi";
+    }
+}
+
+parent -> A() // no issue
+parent -> C() //Cannot
+parent -> B() // have special case where can gets access to child override
+//will print "i am Child"
+
+child -> A() // no issue
+child -> B() // ""
+child -> C() // ""

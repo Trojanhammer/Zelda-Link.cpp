@@ -8,7 +8,7 @@ Bokobolin::Bokobolin() : Enemy({.name = "Bokobolin", .health =80, .maxHealth = 8
 }
 
 void Bokobolin::TakeAction(){
-   // std::cout << name << "has stolen" << stolenGold << "from you";
    std::cout << "Bokobolin attack you";
+
 }
 
