@@ -1,0 +1,29 @@
+1. while(isRunning){                                               
+    while (sdl_pollevent(&event)){
+        if (event.type == (SDL.quit())){
+            isRunning = false;
+        }
+
+   sdl_renderpresent(renderer)
+    }
+}
+
+2. while(isRunning){
+    sdl_pollevent(&event);
+    if (event.type == (SDL.quit())){
+        isRunning = false;
+    }
+
+    sdl_renderpresent(renderer)
+    }
+}
+
+Why we put use first approach (have second while)?
+---------------------------------------------------
+- Check in one specific timeframe, CPU will check in RAM for data points of mouse coordinate. (Faster than how many mouse can sent data in 1 second)
+- 1000Hz mouse can sent 1000 event to the computer in one second while CPU can read it far more faster than it can be sent.CPU can read data from RAM around 0.000001 milisecond
+- When it sense that no data is available in RAM , it breaks the loop since it is false & ask GPU to render the graphics.
+- At this time , CPU will wait or idle because waiting for GPU to complete the task (V-Sync)
+- 60 FPS = 16.6 milisecond each time GPU have to produce one frame.so CPU will wait for 16.6 milisecond
+- Without V-sync, CPU will always send new data to GPU to render which makes the graphic can be weird since GPU is panic.
+- Eventho in the code, the CPU still takes time to process it, GPU holds frame buffer which holds current frame until it finished a new one.
