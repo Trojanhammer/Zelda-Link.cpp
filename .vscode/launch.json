@@ -13,6 +13,19 @@
             "externalConsole": false,
             "MIMode": "lldb",
             "preLaunchTask": "build game (debug)"
+        },
+        {
+            "name": "Debug main-sdl",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/main-sdl",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "build main-sdl (debug)"
         }
     ]
 }
