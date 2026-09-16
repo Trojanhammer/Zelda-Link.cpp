@@ -28,14 +28,12 @@ int main(int argc , char* argv[]){
     bool isRunning = true;
     SDL_Event event; // Initialize event
     while (isRunning) {
-        // while (SDL_PollEvent(&event)) { // Get the event from RAM. Give address of event(which stores event obviously) to that fx
-        //     if (event.type == SDL_QUIT){ // Check
-        //         isRunning = false; // Close 
-        //     }
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT){
-            isRunning = false;
+        while (SDL_PollEvent(&event)) { // Get the event from RAM. Give address of event(which stores event obviously) to that fx
+            if (event.type == SDL_QUIT){ // Check
+                isRunning = false; // Close 
+            }
         }
+
     SDL_SetRenderDrawColor(renderer, 0,0,230,100);
     SDL_RenderClear(renderer); // Put color to render
     SDL_RenderPresent(renderer); // Show the result

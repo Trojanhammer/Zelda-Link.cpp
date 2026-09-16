@@ -8,7 +8,13 @@ class Enemy{
         int maxHealth;
         int attackPower;
         bool isAlive;
-        float movspeed;
+        float posX;
+        float posY;
+        int basePosX;
+        int basePosY;
+        float vY; // velocityY
+        float vX;
+        float NormalizedHypotenous;
 
     // Strucks is to group related variables together.
     // Struct to hold the stats of the enemy. struct NameOfStructType { variableType variableName; ... };
@@ -19,7 +25,13 @@ class Enemy{
             int maxHealth;
             int attackPower;
             bool isAlive;
-            float movspeed;
+            float posX;
+            float posY;
+            int basePosX;
+            int basePosY;
+            float vX; 
+            float vY;
+            float NormalizedHypotenous;
         };
 
     // Why need to declare two times.because those variables lives inside Enemy::EnemyStats not Enemy class.So should declare again

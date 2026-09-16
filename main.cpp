@@ -6,17 +6,46 @@
 #include <memory> // Include the memory header for smart pointers
 #include <iostream> // Include the iostream header for input/output operations
 #include <vector>
+#include <cmath>
+
+#include <SDL.h>
 
 // main fx is the entry point of the program
-int main(){
+int main(int argc, char* argv[]){
     std::ios_base::sync_with_stdio(false); //Optimize text printing(cout) by disconnecting to old C safety checks
 
     int choice;
     int loop=4;
     int currentEnemyIndex = 0;
 
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window* window = SDL_CreateWindow
+    ("Zelda-Link",
+    SDL_WINDOWPOS_CENTERED,
+    SDL_WINDOWPOS_CENTERED,
+    800,500,
+    SDL_WINDOW_SHOWN);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
+
+    bool isRunning = true;
+    SDL_Event event;
+    while(isRunning){
+        while(SDL_PollEvent(&event)){
+            if (event.type == SDL_QUIT){
+                isRunning = false;
+            }
+        }
+    SDL_SetRenderDrawColor(renderer, 255,255,255,255);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
+    }
+
+    
+
+
     std::cout << "Game Start";
-    auto MainPlayer= std::make_unique<Player>("Link",100,100,true,nullptr,nullptr);
+    auto MainPlayer= std::make_unique<Player>("Link",100,100,true,150,300,150,300,0,0,0,nullptr,nullptr);
     // smart pointers
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);

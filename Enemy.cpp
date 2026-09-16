@@ -8,7 +8,14 @@ Enemy::Enemy(Enemy::EnemyStats stats) {
     maxHealth = stats.maxHealth;
     attackPower = stats.attackPower;
     isAlive = stats.isAlive;
-    movspeed = stats.movspeed;
+    posX = stats.posX;
+    posY = stats.posY;
+    vX = stats.vX;
+    vY = stats.vY;
+    basePosX = stats.basePosX;
+    basePosY = stats.basePosY;
+    NormalizedHypotenous = stats.NormalizedHypotenous;
+
 }
 
 void Enemy::TakeDamage(int damage){  
