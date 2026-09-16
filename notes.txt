@@ -207,6 +207,8 @@ class BankAccount {
 private:
     double balance;
     std::string accountId;
+protected:
+    int a;
 
 public:
     BankAccount(double initialBalance, std::string id) {
@@ -218,10 +220,31 @@ public:
         else { accountId = id; }
     }
 };
-Use code with caution.If a child class like SavingsAccount could bypass this and initialize balance and accountId directly in its own constructor, 
+If a child class like SavingsAccount could bypass this and initialize balance and accountId directly in its own constructor, 
 the child programmer might not know about these rules. They could accidentally initialize balance = -99999 or set an empty ID, 
 violating the core logic of how a bank account is supposed to work.
 Even if the child class dont use the private var of parent , memory still will be allocated for priv var for object.
+- The child object for example named Maybank2U will have its own memory box for balance and accountId.Private just means the var cant 
+access directly using Maybank2U -> balance; and must go thru parent constructor to initialize. Can access using getter function in parent class
+
+class BankAccount {
+private:
+    double balance; // Locked in the private vault!
+
+public:
+    // 1. Constructor to SETUP the value
+    BankAccount(double initialBalance) {
+        balance = initialBalance;
+    }
+
+    // 2. GETTER to READ the value (The Public Window)
+    double getBalance() { 
+        return balance; // The parent reads its own private variable and hands it out
+    }
+};
+
+- For "protected" the variable "a" can be access directly from child object .
+No need to go to constructor when initializing.But it cant access directly outside of it like int main()
 
 FUN FACT
 
@@ -276,10 +299,14 @@ If choice receives "abc" or string, cin will panic and silently failed so it tel
 Parent pointer type vs Child pointer type
 ---------------------------------------------
 
-Parent* parent = new Parent();
-Child* child = new Child();
+Parent* parentPtr = new Child();
+Child* childPtr = new Child();
 
 class Parent{
+    public:
+        int a;
+    private:
+        int b;
     public:
     void A(){
         std::cout << "Happy Birthday"
@@ -289,7 +316,9 @@ class Parent{
     }
 }
 
-class Child{
+class Child : public Parent{
+    private:
+        int c;
     public:
     void B() override {
         std::cout << " I am Child";
@@ -299,11 +328,18 @@ class Child{
     }
 }
 
-parent -> A() // no issue
-parent -> C() //Cannot
-parent -> B() // have special case where can gets access to child override
+parentPtr -> A() // no issue                                                   
+parentPtr -> C() // Cannot                                                      
+parentPtr -> B() // access child ones since the object is child and the fx is "virtual"
 //will print "i am Child"
 
-child -> A() // no issue
-child -> B() // ""
-child -> C() // ""
+childPtr -> A() // no issue
+childPtr -> B() // ""
+childPtr -> C() // ""
+childPtr -> c // cant
+
+----------------------------------------------------
+class Child : public Parent vs class Child : Parent
+----------------------------------------------------
+by default , like class or struct, it is private.
+So class Child : Parent will transform all of its variable and fx to private.

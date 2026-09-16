@@ -5,8 +5,6 @@
 
 class Bokobolin : public Enemy {
     public:
-        //int stolenGold;
-    public:
         // Cant use  "using Enemy::Enemy("Bokobolin",100,100);" because using dont support giving args
         // Should use zero args for constructor
         Bokobolin();

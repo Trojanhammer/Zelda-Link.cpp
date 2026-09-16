@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+class Player; // tells the compiler that this class is exist and dont worry about details.trust me. this is declaration.
 
 class Enemy{
     public:
@@ -15,6 +16,7 @@ class Enemy{
         float vY; // velocityY
         float vX;
         float NormalizedHypotenous;
+        static Player* MainPlayer;
 
     // Strucks is to group related variables together.
     // Struct to hold the stats of the enemy. struct NameOfStructType { variableType variableName; ... };
@@ -44,4 +46,5 @@ class Enemy{
 
         // "virtual" means this fx can have many forms for child class (polymorphism).
         virtual void TakeAction();
+        void Attack();
 };
