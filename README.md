@@ -1,8 +1,8 @@
 # Zelda-Link.cpp
 
-<img src="assets/link.jpeg" alt="Pixel art of Link raising the Master Sword" width="300">
+<img src="assets/link.jpeg" alt="Pixel art of Link raising the Master Sword" width="250"> <img src="assets/bokobolin.jpeg" alt="Pixel art of Bokobolin wielding a wooden club" width="220"> <img src="assets/stalfos.jpeg" alt="Pixel art of Stalfos skeleton warrior" width="220">
 
-> **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. There is no plan to release, publish, or distribute this as a playable game anywhere.
+> **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. No plan to publicly release or distribute this as a playable game — any cross-platform builds are purely to learn the packaging process itself.
 
 A C++ program built for learning core language concepts — classes, inheritance, polymorphism, pointers, memory management and now basic physics through a working example instead of just theory.
 
