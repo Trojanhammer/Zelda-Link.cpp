@@ -51,6 +51,7 @@ int main(int argc, char* argv[]){
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
     auto Enemy1 = std::make_unique<Bokobolin>();
     auto Enemy2 = std::make_unique<Stalfos>();
+    Enemy1 -> MainPlayer = MainPlayer.get();
     std::vector<Enemy*> enemies; // make another raw pointers in vector that points towards each enemy pointers
     enemies.push_back(Enemy1.get());
     enemies.push_back(Enemy2.get());
@@ -100,6 +101,7 @@ int main(int argc, char* argv[]){
         }
         MainPlayer -> EquippedWeapon -> Attack();
         MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+        MainPlayer -> Attack();
         
         //Enemy Turn
 
@@ -119,6 +121,7 @@ int main(int argc, char* argv[]){
             currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
         }
         MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
+        enemies[currentEnemyIndex] -> Attack();
         currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
 
         if (!(MainPlayer -> isAlive)){

@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include "weapon.h"
-#include "Enemy.h"
+class Enemy;
 
 class Player {
     public:

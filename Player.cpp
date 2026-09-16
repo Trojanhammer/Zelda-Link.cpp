@@ -1,5 +1,6 @@
 #include <iostream>
 #include "Player.h"
+#include "Enemy.h"
 #include "CombatUtils.h"
 
 Player::Player(std::string playerName, int playerHealth, int playerMaxHealth, bool playerIsAlive, float positionX, float positionY, int basePositionX, int basePositionY,

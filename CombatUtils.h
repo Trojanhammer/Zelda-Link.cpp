@@ -16,6 +16,5 @@ inline void ApplyDamage(int& health, int& damage,bool& isAlive){
 // Use inline because in C++, it treats only one fx definition(full fx body) can only exist in one program
 // without inline, Enemy.cpp and Player.cpp actually have identical fx which is ApplyDamage()
 // and the linker sees two same fx definitions
-// so use inline , so it breaks that laws of only one fx with same name in one program
-// tell the linker that these are meant to be identical
+// so use inline , so it tells the linker that both used identical fx definition.not seperate one
 // ODD RULE (One Definition Rule)
