@@ -343,3 +343,47 @@ class Child : public Parent vs class Child : Parent
 ----------------------------------------------------
 by default , like class or struct, it is private.
 So class Child : Parent will transform all of its variable and fx to private.
+
+----------------------------------------------------
+When an object is out of scope (lets say MainPlayer) which have unique_ptr, it automatically calls "delete", delete here means not erasing the
+data in heap or the object itself, it just freed the memory like saying this one is free to use / displaced.When new data comes in,it overwrite
+At the same time ,unique_ptr calls too 'destructor' before saying to OS this memory is free.
+'destructor' is a safety net that will frees all the content inside the object
+
+Example :
+class Parent:{
+public :
+    int a ;
+    int b;
+};
+
+class Child : public Parent{
+    public :
+        std::string c; // actually if it is string, most of the time it just holds the address to the other memory outside of object just for string.
+};
+
+int main(){
+    std::unique_ptr<Parent> parentPtr = std::make_unique<Child>();// child object but parent type pointer
+}
+
+Even tho unique_ptr calls "delete" and "destructor" automatically without need u to write lines of code.It will call destructor of Parent class,
+not Child class.So, only int a, int b and pointer to the real content of string is freed while real content of string c is not freed which leads to memory leak later on if not use child destructor "~Child()"
+After that, unique_ptr also destoyed itself.
+
+Unique_ptr will never cause dangling pointer but raw pointer can.
+
+Important Footnote:
+Why not just ignore it if Child only has plain int? 
+Because C++ standard calls this "Undefined Behavior" regardless of whether OS successfully reclaims the raw bytes or not. "It looks fine with plain ints" is just luck, not a guarantee. 
+The golden rule is: If a class has ANY virtual function, ALWAYS add a virtual destructor in the parent class. Full stop.
+
+Simply, just include destructor in class that have "virtual" fx .just put in parent class.when it sees virtual, it knows to check further if
+the object is child or parent because when "delete" happens it only see the pointer type ,not object.
+
+
+A pointer becomes dangling only when both of these are true simultaneously:
+
+1.The object it points to has been destroyed.
+2.The pointer variable itself still exists and still holds that old (now-invalid) address.
+
+Can prevent by set to nullptr
