@@ -47,4 +47,6 @@ class Enemy{
         // "virtual" means this fx can have many forms for child class (polymorphism).
         virtual void TakeAction();
         void Attack();
+
+        virtual ~Enemy() = default; // destructor
 };
