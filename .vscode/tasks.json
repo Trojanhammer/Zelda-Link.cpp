@@ -53,6 +53,30 @@
                 "isDefault": false
             },
             "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "build physics-test (debug)",
+            "type": "shell",
+            "command": "/usr/bin/clang++",
+            "args": [
+                "-std=c++17",
+                "-g",
+                "-O0",
+                "physics-test.cpp",
+                "Player.cpp",
+                "Enemy.cpp",
+                "Bokobolin.cpp",
+                "-o",
+                "physics-test"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": ["$gcc"]
         }
     ]
 }

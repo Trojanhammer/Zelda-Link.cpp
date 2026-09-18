@@ -34,9 +34,9 @@ int main(int argc , char* argv[]){
             }
         }
 
-    SDL_SetRenderDrawColor(renderer, 0,0,230,100);
-    SDL_RenderClear(renderer); // Put color to render
-    SDL_RenderPresent(renderer); // Show the result
+        SDL_SetRenderDrawColor(renderer, 0,0,230,100);
+        SDL_RenderClear(renderer); // Put color to render
+        SDL_RenderPresent(renderer); // Show the result
     }
 
     // Clear memory in RAM before end the game

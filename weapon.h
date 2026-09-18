@@ -10,5 +10,4 @@ class Weapon {
     public: //fx declaration
         Weapon(std::string weaponName, int weaponDamage, int weaponDurability);
         void Attack();
-        void Equip();
 };

@@ -14,6 +14,3 @@ void Weapon::Attack() {
         std::cout << "The weapon " << name << " is broken and cannot be used " << std::endl;
     }
 }
-void Weapon::Equip(){
-    std::cout << "Currently, you use " << name << "\n";
-}
