@@ -8,14 +8,17 @@ class Enemy{
         int health;
         int maxHealth;
         int attackPower;
-        bool isAlive;
+        bool isAlive = true;
+        bool isAttack = false;
+        bool isKnocking = false;
+        bool isKnocked = false;
         float posX;
         float posY;
         int basePosX;
         int basePosY;
         float vY; // velocityY
         float vX;
-        float NormalizedHypotenous;
+        float NormalizedHypotenous =0;
         static Player* MainPlayer;
 
     // Strucks is to group related variables together.
@@ -26,14 +29,12 @@ class Enemy{
             int health;
             int maxHealth;
             int attackPower;
-            bool isAlive;
             float posX;
             float posY;
             int basePosX;
             int basePosY;
             float vX; 
             float vY;
-            float NormalizedHypotenous;
         };
 
     // Why need to declare two times.because those variables lives inside Enemy::EnemyStats not Enemy class.So should declare again
@@ -47,6 +48,8 @@ class Enemy{
         // "virtual" means this fx can have many forms for child class (polymorphism).
         virtual void TakeAction();
         void Attack();
+        void KnockBack(float vXOpponent, float vYOpponent);
+        void UpdateKnock();
 
         virtual ~Enemy() = default; // destructor
 };

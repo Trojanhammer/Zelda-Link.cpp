@@ -8,14 +8,12 @@ Enemy::Enemy(Enemy::EnemyStats stats) {
     health = stats.health;
     maxHealth = stats.maxHealth;
     attackPower = stats.attackPower;
-    isAlive = stats.isAlive;
     posX = stats.posX;
     posY = stats.posY;
     vX = stats.vX;
     vY = stats.vY;
     basePosX = stats.basePosX;
     basePosY = stats.basePosY;
-    NormalizedHypotenous = stats.NormalizedHypotenous;
 
 }
 Player* Enemy::MainPlayer = nullptr;
@@ -58,4 +56,23 @@ void Enemy::Attack(){
     posX += vX;
     posY += vY;
     }
+}
+
+void Enemy::KnockBack( float vXOpponent ,float vYOpponent){
+    vX = vXOpponent ;
+    vY = vYOpponent;
+}
+void Enemy::UpdateKnock(){
+    vX *= 0.90;
+    vY *= 0.90;
+    if(std::abs(vX) <0.1 && std::abs(vY) <0.1){
+        vX=0;
+        vY=0;
+        isKnocked = false;
+        return;
+    }
+    posX += vX;
+    posY += vY;
+    std::cout << "velo X : " << vX << " velo Y : " << vY << std::endl;
+    std::cout << "X : " << posX << " Y : " << posY << "\n" <<std::endl;
 }

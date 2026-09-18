@@ -13,7 +13,16 @@
 // main fx is the entry point of the program
 int main(int argc, char* argv[]){
     std::ios_base::sync_with_stdio(false); //Optimize text printing(cout) by disconnecting to old C safety checks
+ 
+    enum GameState {// Enumuration is for readability for users like chooseweapon is read as "0" to computer and "1" for chooseenemy and goes on
+        ChooseWeapon, // GameState is datatype
+        ChooseEnemy,
+        Attack,
+        AttackingPhysics,
+        ReturningPhysics
+    };
 
+    GameState currentState = ChooseWeapon;
     int choice;
     int loop=4;
     int currentEnemyIndex = 0;
@@ -30,22 +39,10 @@ int main(int argc, char* argv[]){
 
     bool isRunning = true;
     SDL_Event event;
-    while(isRunning){
-        while(SDL_PollEvent(&event)){
-            if (event.type == SDL_QUIT){
-                isRunning = false;
-            }
-        }
-    SDL_SetRenderDrawColor(renderer, 255,255,255,255);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
-    }
-
-    
 
 
     std::cout << "Game Start";
-    auto MainPlayer= std::make_unique<Player>("Link",100,100,true,150,300,150,300,0,0,0,nullptr,nullptr);
+    auto MainPlayer= std::make_unique<Player>();
     // smart pointers
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
@@ -56,8 +53,74 @@ int main(int argc, char* argv[]){
     enemies.push_back(Enemy1.get());
     enemies.push_back(Enemy2.get());
     std::cout << "Your name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Enemy1 -> name << " & " << Enemy2 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game";
-    while(loop>0){
+    
+    while(isRunning){
+        // Part 1: Input Handling 
+        while(SDL_PollEvent(&event)){
+            if (event.type == SDL_QUIT){
+                isRunning = false;
+            }
+            else if(event.type == SDL_KEYDOWN){ // when anything on keyboard is click
+                if(currentState == ChooseWeapon){
+                    if(event.key.keysym.sym == SDLK_1 && MasterSword -> durability > 0){
+                        MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                        currentState = ChooseEnemy;
+                    }
+                    else if(event.key.keysym.sym == SDLK_2 &&OcarinaSword -> durability > 0){
+                        MainPlayer -> EquippedWeapon = OcarinaSword.get();
+                        currentState = ChooseEnemy;
+                    }
+                    
+                }
+                else if(currentState == ChooseEnemy){
+                    if(event.key.keysym.sym == SDLK_1 && Enemy1 -> isAlive){
+                        MainPlayer -> TargetEnemy = Enemy1.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                        currentState = Attack;
+                    }
+                    else if(event.key.keysym.sym == SDLK_2 && Enemy2 -> isAlive){
+                        MainPlayer -> TargetEnemy = Enemy2.get();
+                        currentState = Attack;
+                    }
+                   
+                }
+            }
+
+        }
+
+        // Part 2 : Physics 
+
+        if(currentState == Attack){
+            MainPlayer -> EquippedWeapon -> Attack();
+            MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+            currentState = AttackingPhysics;
+        }
+        if(currentState == AttackingPhysics){
+            MainPlayer -> Attack();
+        }
         
+        
+        // Part 3 : Rendering
+        SDL_SetRenderDrawColor(renderer, 255,255,255,255);
+        SDL_RenderClear(renderer);
+
+        if(currentState ==ChooseWeapon){
+            // print ayat 
+        }
+        else if(currentState == ChooseEnemy){
+            // print instruction to window
+        }
+        SDL_RenderPresent(renderer);
+    
+        
+
+
+
+
+
+
+
+
+
         std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
         << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
         // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
@@ -71,11 +134,9 @@ int main(int argc, char* argv[]){
         
         if (choice == 1 && MasterSword -> durability > 0){
             MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-            MasterSword -> Equip();
         }
         else if (choice == 2 && OcarinaSword -> durability > 0){
             MainPlayer -> EquippedWeapon = OcarinaSword.get();
-            OcarinaSword -> Equip();
         }
         else{
             std::cout << "Invalid choice, choose again";
@@ -128,7 +189,6 @@ int main(int argc, char* argv[]){
             break; // Break the loop when player died
         }
 
-        loop--;
 
     }
 
@@ -140,5 +200,7 @@ int main(int argc, char* argv[]){
     }
 
     std::cout << "Game Over";
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
 }
 //When main fx ends, so smart pointers will automatically delete the objects they point to, so no need to manually delete them.
