@@ -1,6 +1,6 @@
 # Zelda-Link.cpp
 
-<img src="assets/link.jpeg" alt="Pixel art of Link raising the Master Sword" width="250"> <img src="assets/bokobolin.jpeg" alt="Pixel art of Bokobolin wielding a wooden club" width="220"> <img src="assets/stalfos.jpeg" alt="Pixel art of Stalfos skeleton warrior" width="220">
+<img src="assets/compressed/link-2x.png" alt="Pixel art of Link raising the Master Sword" width="130"> <img src="assets/compressed/bokobolin-2x.png" alt="Pixel art of Bokobolin wielding a wooden club" width="346"> <img src="assets/compressed/stalfos-2x.png" alt="Pixel art of Stalfos skeleton warrior" width="234">
 
 > **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. No plan to publicly release or distribute this as a playable game — any cross-platform builds are purely to learn the packaging process itself.
 
@@ -43,7 +43,9 @@ clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Bokobolin.cpp Stalfos.cpp Playe
 | `main-sdl.cpp` | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
 | `sdl-notes.txt` | Notes specifically on SDL2 fundamentals and V-Sync |
-| `assets/link.jpeg` | README banner image |
+| `assets/compressed/` | Cropped, palette-reduced character sprites (a few KB each) — the `*-2x.png` copies are what the README shows |
+| `assets/*.mp4` | Intro and hit-animation clips (not rendered in-game yet) |
+| `assets/*.jpeg` | Original 2048×2048 character art, kept as source for the compressed sprites |
 
 ## Limitations
 
