@@ -387,3 +387,11 @@ A pointer becomes dangling only when both of these are true simultaneously:
 2.The pointer variable itself still exists and still holds that old (now-invalid) address.
 
 Can prevent by set to nullptr
+
+----------------------------
+VARIABLE TYPE TO SAVE MEMORY
+----------------------------
+1.Signed variable - can be negative , 0 and positive (int,float). one var of int use 4 bytes.
+2. Unsigned variable - can only be 0 or positive
+
+uint8_t (size : 1 byte , 0-255)     uint16_t (size : 2 byte , 0, 65535)

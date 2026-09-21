@@ -1,6 +1,7 @@
 #include "Enemy.h"
 #include "Player.h"
 #include <iostream>
+#include <cstdint>
 #include "CombatUtils.h"
 
 Enemy::Enemy(Enemy::EnemyStats stats) {
@@ -18,7 +19,7 @@ Enemy::Enemy(Enemy::EnemyStats stats) {
 }
 Player* Enemy::MainPlayer = nullptr;
 
-void Enemy::TakeDamage(int damage){  
+void Enemy::TakeDamage(uint8_t damage){  
     if(!isAlive){
         std::cout << name << " is already dead" << std::endl;
         return; //return is for exit the function
@@ -32,7 +33,7 @@ void Enemy :: TakeAction(){
 }
 
 void Enemy::Attack(){
-    // Assume use same speed which is 8 px per frame
+    // Assume use same speed which is 6 px per frame
     float dX = ((MainPlayer->posX))- posX;
     float dY = (MainPlayer ->posY) - posY;
     if(dX==0 && dY==0){ // kills this fx once arrives to location
@@ -43,11 +44,11 @@ void Enemy::Attack(){
     NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
     ratioX = dX/NormalizedHypotenous;
     ratioY = dY/NormalizedHypotenous;
-    vX = 8 * ratioX;
-    vY = 8 * ratioY;
+    vX = 6 * ratioX;
+    vY = 6 * ratioY;
 
      // Check if already arrived or not to prevent wall bug
-    if (NormalizedHypotenous <= 8){
+    if (NormalizedHypotenous <= 6){
         posX = MainPlayer -> posX;
         posY = MainPlayer -> posY;
 

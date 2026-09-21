@@ -17,9 +17,8 @@ int main(int argc, char* argv[]){
     enum GameState {// Enumuration is for readability for users like chooseweapon is read as "0" to computer and "1" for chooseenemy and goes on
         ChooseWeapon, // GameState is datatype
         ChooseEnemy,
-        Attack,
-        AttackingPhysics,
-        ReturningPhysics
+        DealDamage,
+        AttackingPhysics
     };
 
     GameState currentState = ChooseWeapon;
@@ -75,11 +74,11 @@ int main(int argc, char* argv[]){
                 else if(currentState == ChooseEnemy){
                     if(event.key.keysym.sym == SDLK_1 && Enemy1 -> isAlive){
                         MainPlayer -> TargetEnemy = Enemy1.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-                        currentState = Attack;
+                        currentState = DealDamage;
                     }
                     else if(event.key.keysym.sym == SDLK_2 && Enemy2 -> isAlive){
                         MainPlayer -> TargetEnemy = Enemy2.get();
-                        currentState = Attack;
+                        currentState = DealDamage;
                     }
                    
                 }
@@ -87,15 +86,29 @@ int main(int argc, char* argv[]){
 
         }
 
-        // Part 2 : Physics 
+        // Checks if player has choose .if not, then skip to render.
+        if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
+            // Part 2 : Physics 
 
-        if(currentState == Attack){
+            if(currentState == DealDamage){ // seperate from attack physics because this one only run once since turn based game
             MainPlayer -> EquippedWeapon -> Attack();
             MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
             currentState = AttackingPhysics;
-        }
-        if(currentState == AttackingPhysics){
+            }
+            if(currentState == AttackingPhysics){
             MainPlayer -> Attack();
+            }
+            if (MainPlayer->isKnocking){
+            MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
+            MainPlayer -> isKnocking = false;
+            MainPlayer -> TargetEnemy -> isKnocked = true;
+            }
+            if(MainPlayer -> TargetEnemy -> isKnocked)
+            MainPlayer -> TargetEnemy -> UpdateKnock();
+        
+            if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){ // When done attack & return
+            // break here but must render first so part 3 will go first then we break
+            }
         }
         
         
@@ -111,58 +124,54 @@ int main(int argc, char* argv[]){
         }
         SDL_RenderPresent(renderer);
     
+
+
+
+
+
+
+        // std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
+        // << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
+        // // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
         
-
-
-
-
-
-
-
-
-
-        std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
-        << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
-        // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
+        // // Check if the choice gets int
+        // if (!(std::cin >> choice)){
+        //     std::cin.clear(); // Uncrash the cin operator
+        //     std::cin.ignore(10000,'\n'); // Remove false value
+        //     continue;
+        // }
         
-        // Check if the choice gets int
-        if (!(std::cin >> choice)){
-            std::cin.clear(); // Uncrash the cin operator
-            std::cin.ignore(10000,'\n'); // Remove false value
-            continue;
-        }
-        
-        if (choice == 1 && MasterSword -> durability > 0){
-            MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-        }
-        else if (choice == 2 && OcarinaSword -> durability > 0){
-            MainPlayer -> EquippedWeapon = OcarinaSword.get();
-        }
-        else{
-            std::cout << "Invalid choice, choose again";
-            continue; //restart the while loop again
-        }
+        // if (choice == 1 && MasterSword -> durability > 0){
+        //     MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+        // }
+        // else if (choice == 2 && OcarinaSword -> durability > 0){
+        //     MainPlayer -> EquippedWeapon = OcarinaSword.get();
+        // }
+        // else{
+        //     std::cout << "Invalid choice, choose again";
+        //     continue; //restart the while loop again
+        // }
 
-        std::cout << "Choose Monster to Attack: 1." << Enemy1 -> name << " " << Enemy1 -> health << " left ." << " 2. " << Enemy2 -> name << " " << Enemy2 -> health << " left .";
-        int enemyChoice;
-        if(!(std::cin >> enemyChoice)){
-            std::cin.clear();
-            std::cin.ignore(10000,'\n');
-            continue;
-        }
-        if (enemyChoice==1 && Enemy1 -> isAlive){
-            MainPlayer -> TargetEnemy = Enemy1.get();
-        }
-        else if (enemyChoice==2 && Enemy2 -> isAlive){
-            MainPlayer -> TargetEnemy = Enemy2.get();
-        }
-        else{
-            std::cout << "Invalid";
-            continue;
-        }
-        MainPlayer -> EquippedWeapon -> Attack();
-        MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-        MainPlayer -> Attack();
+        // std::cout << "Choose Monster to Attack: 1." << Enemy1 -> name << " " << Enemy1 -> health << " left ." << " 2. " << Enemy2 -> name << " " << Enemy2 -> health << " left .";
+        // int enemyChoice;
+        // if(!(std::cin >> enemyChoice)){
+        //     std::cin.clear();
+        //     std::cin.ignore(10000,'\n');
+        //     continue;
+        // }
+        // if (enemyChoice==1 && Enemy1 -> isAlive){
+        //     MainPlayer -> TargetEnemy = Enemy1.get();
+        // }
+        // else if (enemyChoice==2 && Enemy2 -> isAlive){
+        //     MainPlayer -> TargetEnemy = Enemy2.get();
+        // }
+        // else{
+        //     std::cout << "Invalid";
+        //     continue;
+        // }
+        // MainPlayer -> EquippedWeapon -> Attack();
+        // MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+        // MainPlayer -> Attack();
         
         //Enemy Turn
 

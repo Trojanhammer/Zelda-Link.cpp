@@ -1,21 +1,22 @@
 #pragma once
 #include <string>
+#include <cstdint>
 class Player; // tells the compiler that this class is exist and dont worry about details.trust me. this is declaration.
 
 class Enemy{
     public:
         std::string name;
         int health;
-        int maxHealth;
-        int attackPower;
+        u_int8_t maxHealth;
+        u_int8_t attackPower;
         bool isAlive = true;
         bool isAttack = false;
         bool isKnocking = false;
         bool isKnocked = false;
         float posX;
         float posY;
-        int basePosX;
-        int basePosY;
+        u_int16_t basePosX;
+        u_int16_t basePosY;
         float vY; // velocityY
         float vX;
         float NormalizedHypotenous =0;
@@ -27,12 +28,12 @@ class Enemy{
         struct EnemyStats{
             std::string name;
             int health;
-            int maxHealth;
-            int attackPower;
+            uint16_t maxHealth;
+            uint8_t attackPower;
             float posX;
             float posY;
-            int basePosX;
-            int basePosY;
+            uint16_t basePosX;
+            uint16_t basePosY;
             float vX; 
             float vY;
         };
@@ -43,7 +44,7 @@ class Enemy{
     public:
         // stats is a variable name for EnemyStats struct type.
         Enemy(EnemyStats stats);
-        void TakeDamage(int damage);
+        void TakeDamage(u_int8_t damage);
 
         // "virtual" means this fx can have many forms for child class (polymorphism).
         virtual void TakeAction();

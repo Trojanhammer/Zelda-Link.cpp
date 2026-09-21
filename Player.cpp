@@ -4,7 +4,7 @@
 #include "Enemy.h"
 
 
-void Player::TakeDamage(int damage){
+void Player::TakeDamage(u_int8_t damage){
     ApplyDamage(health,damage,isAlive);
 
 }
@@ -17,6 +17,7 @@ void Player::Attack(){
     }
 
     // Assume use same speed which is 6 px per frame
+    uint8_t velocity = 6;
     float dX = ((TargetEnemy->posX)) - posX;
     float dY = (TargetEnemy ->posY) - posY;
     if(dX==0 && dY==0){
@@ -32,7 +33,6 @@ void Player::Attack(){
     NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
     ratioX = dX/NormalizedHypotenous;
     ratioY = dY/NormalizedHypotenous;
-    float velocity = NormalizedHypotenous/50;
     vX = velocity * ratioX;
     vY = velocity * ratioY;
 

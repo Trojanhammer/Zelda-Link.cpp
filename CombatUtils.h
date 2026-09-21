@@ -1,7 +1,8 @@
 #include <iostream>
+#include <cstdint>
 #pragma once
 
-inline void ApplyDamage(int& health, int& damage,bool& isAlive){
+inline void ApplyDamage(int& health, u_int8_t& damage,bool& isAlive){
     health -=damage;
     if (health<=0){
         isAlive=false;
