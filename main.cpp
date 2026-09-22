@@ -18,13 +18,21 @@ int main(int argc, char* argv[]){
         ChooseWeapon, // GameState is datatype
         ChooseEnemy,
         DealDamage,
-        AttackingPhysics
+        AttackingPhysics,
+        PlayerTurn,
+        EnemyTurn,
+        AllEnemyDead,
+        CalculateTurn,
+        EnemyAttack,
+        PlayerDie,
+        FirstTurn,
+        NextTurn
+
     };
 
     GameState currentState = ChooseWeapon;
-    int choice;
-    int loop=4;
     int currentEnemyIndex = 0;
+    uint8_t turn = 0;
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow
@@ -54,6 +62,7 @@ int main(int argc, char* argv[]){
     std::cout << "Your name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Enemy1 -> name << " & " << Enemy2 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game";
     
     while(isRunning){
+//-----------------------------------------------------------------------------------------------------------------
         // Part 1: Input Handling 
         while(SDL_PollEvent(&event)){
             if (event.type == SDL_QUIT){
@@ -85,8 +94,9 @@ int main(int argc, char* argv[]){
             }
 
         }
+//-----------------------------------------------------------------------------------------------------------------
 
-        // Checks if player has choose .if not, then skip to render.
+        // Checks if player has choose .If not, then skip to render.
         if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
             // Part 2 : Physics 
 
@@ -96,7 +106,7 @@ int main(int argc, char* argv[]){
             currentState = AttackingPhysics;
             }
             if(currentState == AttackingPhysics){
-            MainPlayer -> Attack();
+            MainPlayer -> Attack(); // have both attacking and returning physics
             }
             if (MainPlayer->isKnocking){
             MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
@@ -107,11 +117,75 @@ int main(int argc, char* argv[]){
             MainPlayer -> TargetEnemy -> UpdateKnock();
         
             if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){ // When done attack & return
-            // break here but must render first so part 3 will go first then we break
+            MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
+            currentState = EnemyTurn;
             }
         }
+//-------------------------------------------------------------------------------
+        // Enemy Turn
+        else if (currentState == EnemyTurn){
+            bool anyEnemyLive=false; // Check if any of enemy still alive
+            
+            for (Enemy* e : enemies){
+                if(e->isAlive){
+                    anyEnemyLive=true;
+                    turn++; // How many turns enemy have depends on how many is alive right now
+                }
+            }
+
+            if (!anyEnemyLive){
+                currentState = AllEnemyDead;
+                break;
+            }
+            else{
+                currentState = FirstTurn;
+            }
+        }
+        if (currentState == FirstTurn){
+            while(!(enemies[currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
+                currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
+            }
+            currentState = DealDamage;
+        }
+        if (currentState == NextTurn){
+            currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
+            currentState = DealDamage;
+            if(turn == 0){
+                currentState = ChooseWeapon; 
+                break; // verify this one is efficient or not
+            }
+        }
+        if (currentState == DealDamage){ // Runs not on every frame
+            MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
+            currentState = AttackingPhysics;
+        }
+
+        if (currentState == AttackingPhysics){ // Runs mostly on every frame
+            enemies[currentEnemyIndex] -> Attack();
+            if (enemies[currentEnemyIndex] -> posX == MainPlayer -> basePosX && enemies[currentEnemyIndex] -> posY == MainPlayer -> posY){
+                currentState=NextTurn;
+                turn--;
+            }
+        }
+        // else if (currentState == DecideTurn){
+        //     currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
+        //     if(turn == 0){
+        //         currentState = ChooseWeapon; 
+        //         break; // verify this one is efficient or not
+        //     }
+        // }
+            // if (enemies[currentEnemyIndex] -> posX == MainPlayer -> basePosX && enemies[currentEnemyIndex] -> posY == MainPlayer -> posY){
+            //     currentState=EnemyTurn;
+            // }
+        if (!(MainPlayer -> isAlive)){
+            currentState = PlayerDie;
+            break; // Break the loop when player died
+        }
+
+    
         
-        
+//-----------------------------------------------------------------------------------------------------------------
+
         // Part 3 : Rendering
         SDL_SetRenderDrawColor(renderer, 255,255,255,255);
         SDL_RenderClear(renderer);
@@ -122,94 +196,18 @@ int main(int argc, char* argv[]){
         else if(currentState == ChooseEnemy){
             // print instruction to window
         }
+        else if (currentState == AllEnemyDead){
+            /// print instruction of you win this game
+        }
+        else if (currentState == PlayerDie){
+            /// print instruction of you lose this game
+        }
         SDL_RenderPresent(renderer);
-    
-
-
-
-
-
-
-        // std::cout << "Choose Weapon to Equip: 1." << MasterSword -> name << ((MasterSword-> durability > 0) ? " " : "BROKEN")
-        // << " 2. " << OcarinaSword -> name << ((OcarinaSword -> durability > 0) ? " " : "BROKEN");
-        // // << precedence has higher priority as default so need to have () in ternary operator so this one is evaluted first before the << operator
-        
-        // // Check if the choice gets int
-        // if (!(std::cin >> choice)){
-        //     std::cin.clear(); // Uncrash the cin operator
-        //     std::cin.ignore(10000,'\n'); // Remove false value
-        //     continue;
-        // }
-        
-        // if (choice == 1 && MasterSword -> durability > 0){
-        //     MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-        // }
-        // else if (choice == 2 && OcarinaSword -> durability > 0){
-        //     MainPlayer -> EquippedWeapon = OcarinaSword.get();
-        // }
-        // else{
-        //     std::cout << "Invalid choice, choose again";
-        //     continue; //restart the while loop again
-        // }
-
-        // std::cout << "Choose Monster to Attack: 1." << Enemy1 -> name << " " << Enemy1 -> health << " left ." << " 2. " << Enemy2 -> name << " " << Enemy2 -> health << " left .";
-        // int enemyChoice;
-        // if(!(std::cin >> enemyChoice)){
-        //     std::cin.clear();
-        //     std::cin.ignore(10000,'\n');
-        //     continue;
-        // }
-        // if (enemyChoice==1 && Enemy1 -> isAlive){
-        //     MainPlayer -> TargetEnemy = Enemy1.get();
-        // }
-        // else if (enemyChoice==2 && Enemy2 -> isAlive){
-        //     MainPlayer -> TargetEnemy = Enemy2.get();
-        // }
-        // else{
-        //     std::cout << "Invalid";
-        //     continue;
-        // }
-        // MainPlayer -> EquippedWeapon -> Attack();
-        // MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-        // MainPlayer -> Attack();
-        
-        //Enemy Turn
-
-        bool anyEnemyLive=false; // Check if any of enemy still alive
-        for (Enemy* e : enemies){
-            if(e->isAlive){
-                anyEnemyLive=true;
-                break;
-            }
-        }
-
-        if (!anyEnemyLive){
-            break; // No living enemy left so break from looping
-        }
-
-        while(!(enemies[currentEnemyIndex] -> isAlive)){ // Search for enemy that still alive
-            currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
-        }
-        MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
-        enemies[currentEnemyIndex] -> Attack();
-        currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
-
-        if (!(MainPlayer -> isAlive)){
-            break; // Break the loop when player died
-        }
-
 
     }
-
-    if(!Enemy1->isAlive && !Enemy2 -> isAlive && MainPlayer ->isAlive){
-        std::cout << "You WIN";
-    }
-    else {
-        std::cout << "You LOSE";
-    }
-
-    std::cout << "Game Over";
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }
+
+
 //When main fx ends, so smart pointers will automatically delete the objects they point to, so no need to manually delete them.

@@ -15,6 +15,12 @@
                 "Bokobolin.cpp",
                 "Stalfos.cpp",
                 "Player.cpp",
+                "-I/opt/homebrew/include/SDL2",
+                "-D_THREAD_SAFE",
+                "-L/opt/homebrew/lib",
+                "-lSDL2main",
+                "-lSDL2",
+                "-Wl,-framework,Cocoa",
                 "-o",
                 "game"
             ],
