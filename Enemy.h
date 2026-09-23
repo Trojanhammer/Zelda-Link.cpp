@@ -1,25 +1,13 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <vector>
+#include <utility>
+#include "Entity.h"
 class Player; // tells the compiler that this class is exist and dont worry about details.trust me. this is declaration.
 
-class Enemy{
+class Enemy : public Entity{
     public:
-        std::string name;
-        int health;
-        u_int8_t maxHealth;
-        u_int8_t attackPower;
-        bool isAlive = true;
-        bool isAttack = false;
-        bool isKnocking = false;
-        bool isKnocked = false;
-        float posX;
-        float posY;
-        u_int16_t basePosX;
-        u_int16_t basePosY;
-        float vY; // velocityY
-        float vX;
-        float NormalizedHypotenous =0;
         static Player* MainPlayer;
 
     // Strucks is to group related variables together.
@@ -44,13 +32,8 @@ class Enemy{
     public:
         // stats is a variable name for EnemyStats struct type.
         Enemy(EnemyStats stats);
-        void TakeDamage(u_int8_t damage);
-
         // "virtual" means this fx can have many forms for child class (polymorphism).
-        virtual void TakeAction();
-        void Attack();
-        void KnockBack(float vXOpponent, float vYOpponent);
-        void UpdateKnock();
-
+        // virtual void TakeAction();
+        void Attack() override;
         virtual ~Enemy() = default; // destructor
 };

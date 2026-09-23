@@ -9,6 +9,5 @@ class Bokobolin : public Enemy {
         // Should use zero args for constructor
         Bokobolin();
         // must use "override" to indicate overriding this fx from parent.otherwise it is treated as new fx
-        void TakeAction() override;
 };
 

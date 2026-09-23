@@ -19,15 +19,11 @@ int main(int argc, char* argv[]){
         ChooseEnemy,
         DealDamage,
         AttackingPhysics,
-        PlayerTurn,
-        EnemyTurn,
+        StartEnemyTurn,
         AllEnemyDead,
-        CalculateTurn,
-        EnemyAttack,
         PlayerDie,
         FirstTurn,
         NextTurn
-
     };
 
     GameState currentState = ChooseWeapon;
@@ -115,15 +111,17 @@ int main(int argc, char* argv[]){
             }
             if(MainPlayer -> TargetEnemy -> isKnocked)
             MainPlayer -> TargetEnemy -> UpdateKnock();
-        
-            if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){ // When done attack & return
+            
+            
+            if ((MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY) && (MainPlayer -> TargetEnemy -> posX == MainPlayer -> TargetEnemy -> basePosX && MainPlayer -> TargetEnemy -> posY == MainPlayer -> TargetEnemy -> basePosY)){ // When done attack & return
             MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
-            currentState = EnemyTurn;
+            currentState = StartEnemyTurn;
             }
         }
 //-------------------------------------------------------------------------------
-        // Enemy Turn
-        else if (currentState == EnemyTurn){
+    // Use "if" for event that happen not on every frame or situations.    
+    // Enemy Turn
+        else if (currentState == StartEnemyTurn){
             bool anyEnemyLive=false; // Check if any of enemy still alive
             
             for (Enemy* e : enemies){
@@ -162,21 +160,20 @@ int main(int argc, char* argv[]){
 
         if (currentState == AttackingPhysics){ // Runs mostly on every frame
             enemies[currentEnemyIndex] -> Attack();
-            if (enemies[currentEnemyIndex] -> posX == MainPlayer -> basePosX && enemies[currentEnemyIndex] -> posY == MainPlayer -> posY){
-                currentState=NextTurn;
-                turn--;
-            }
         }
-        // else if (currentState == DecideTurn){
-        //     currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
-        //     if(turn == 0){
-        //         currentState = ChooseWeapon; 
-        //         break; // verify this one is efficient or not
-        //     }
-        // }
-            // if (enemies[currentEnemyIndex] -> posX == MainPlayer -> basePosX && enemies[currentEnemyIndex] -> posY == MainPlayer -> posY){
-            //     currentState=EnemyTurn;
-            // }
+        if (enemies[currentEnemyIndex] -> isKnocking){
+            enemies[currentEnemyIndex] -> MainPlayer -> KnockBack(enemies[currentEnemyIndex] -> vX, enemies[currentEnemyIndex] -> vY);
+            enemies[currentEnemyIndex] -> isKnocking = false;
+            enemies[currentEnemyIndex] -> MainPlayer -> isKnocked = true;
+        }
+        if(enemies[currentEnemyIndex] -> MainPlayer -> isKnocked)
+            enemies[currentEnemyIndex] -> MainPlayer -> UpdateKnock();
+
+        if ((enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY) && (enemies[currentEnemyIndex] -> MainPlayer -> posX == enemies[currentEnemyIndex] -> MainPlayer-> basePosX && enemies[currentEnemyIndex] -> MainPlayer -> posY == enemies[currentEnemyIndex] -> MainPlayer -> basePosY)){ // When done attack & return
+            currentState = NextTurn;
+            turn--;
+            }
+
         if (!(MainPlayer -> isAlive)){
             currentState = PlayerDie;
             break; // Break the loop when player died

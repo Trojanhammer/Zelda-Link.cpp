@@ -19,26 +19,23 @@ Enemy::Enemy(Enemy::EnemyStats stats) {
 }
 Player* Enemy::MainPlayer = nullptr;
 
-void Enemy::TakeDamage(uint8_t damage){  
-    if(!isAlive){
-        std::cout << name << " is already dead" << std::endl;
-        return; //return is for exit the function
-    };
-
-    ApplyDamage(health,damage,isAlive);
-}
-void Enemy :: TakeAction(){
-    std::cout << "Bam";
-    
-}
-
 void Enemy::Attack(){
+
+    if (isReturn){
+        Return(RecallAttack);
+        return;
+    }
+
     // Assume use same speed which is 6 px per frame
     float dX = ((MainPlayer->posX))- posX;
     float dY = (MainPlayer ->posY) - posY;
     if(dX==0 && dY==0){ // kills this fx once arrives to location
+        isReturn = true;
+        Return(RecallAttack);
+        isKnocking = true;
         return;
     }
+    RecallAttack.push_back({posX,posY}); // record position of X and Y
     float ratioX =0;
     float ratioY = 0;
     NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
@@ -57,23 +54,4 @@ void Enemy::Attack(){
     posX += vX;
     posY += vY;
     }
-}
-
-void Enemy::KnockBack( float vXOpponent ,float vYOpponent){
-    vX = vXOpponent ;
-    vY = vYOpponent;
-}
-void Enemy::UpdateKnock(){
-    vX *= 0.90;
-    vY *= 0.90;
-    if(std::abs(vX) <0.1 && std::abs(vY) <0.1){
-        vX=0;
-        vY=0;
-        isKnocked = false;
-        return;
-    }
-    posX += vX;
-    posY += vY;
-    std::cout << "velo X : " << vX << " velo Y : " << vY << std::endl;
-    std::cout << "X : " << posX << " Y : " << posY << "\n" <<std::endl;
 }

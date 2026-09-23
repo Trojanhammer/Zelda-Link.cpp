@@ -6,5 +6,4 @@
 class Stalfos : public Enemy {
     public:
         Stalfos(); 
-        void TakeAction() override;
 };

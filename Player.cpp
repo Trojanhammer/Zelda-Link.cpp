@@ -3,16 +3,19 @@
 #include "CombatUtils.h"
 #include "Enemy.h"
 
-
-void Player::TakeDamage(u_int8_t damage){
-    ApplyDamage(health,damage,isAlive);
-
+Player::Player(){
+    name = "Link";
+    health = 100;
+    maxHealth = 100;
+    posX = 150;
+    posY = 300;
+    basePosX = 150;
+    basePosY = 300;
 }
-
 void Player::Attack(){
 
     if (isReturn){
-        Return();
+        Return(RecallAttack);
         return;
     }
 
@@ -22,12 +25,11 @@ void Player::Attack(){
     float dY = (TargetEnemy ->posY) - posY;
     if(dX==0 && dY==0){
         isReturn = true;
-        std::cout << "Start Return" << std::endl;
-        Return ();
+        Return (RecallAttack);
         isKnocking = true;
         return;
     }
-    Recall.push_back({posX,posY}); // record position of X and Y
+    RecallAttack.push_back({posX,posY}); // record position of X and Y
     float ratioX =0;
     float ratioY = 0;
     NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
@@ -51,33 +53,3 @@ void Player::Attack(){
 
 }
 
-void Player::Return(){
-    // read the pair from backwards and set to posX and posY
-    posX = Recall.back().first;
-    posY = Recall.back().second;
-
-    Recall.pop_back(); // Delete last pair 
-
-    if(posX == basePosX && posY == basePosY){
-        isReturn = false;
-    }
-}
-
-void Player::KnockBack(float VxOpponent, float VyOpponent){
-    vX = VxOpponent;
-    vY = VyOpponent;
-}
-void Player::UpdateKnock(){
-    vX *= 0.90;
-    vY *= 0.90;
-    if(std::abs(vX) <0.1 && std::abs(vY) <0.1){
-        vX=0;
-        vY=0;
-        isKnocked = false;
-        return;
-    }
-    posX += vX;
-    posY += vY;
-    std::cout << "velo X : " << vX << " velo Y : " << vY << std::endl;
-    std::cout << "X : " << posX << " Y : " << posY << "\n" <<std::endl;
-}
