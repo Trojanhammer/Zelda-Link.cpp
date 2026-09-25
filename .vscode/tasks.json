@@ -12,8 +12,7 @@
                 "main.cpp",
                 "weapon.cpp",
                 "Enemy.cpp",
-                "Bokobolin.cpp",
-                "Stalfos.cpp",
+                "Entity.cpp",
                 "Player.cpp",
                 "-I/opt/homebrew/include/SDL2",
                 "-D_THREAD_SAFE",
@@ -30,57 +29,6 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            },
-            "problemMatcher": ["$gcc"]
-        },
-        {
-            "label": "build main-sdl (debug)",
-            "type": "shell",
-            "command": "/usr/bin/clang++",
-            "args": [
-                "-std=c++17",
-                "-g",
-                "-O0",
-                "main-sdl.cpp",
-                "-I/opt/homebrew/include/SDL2",
-                "-D_THREAD_SAFE",
-                "-L/opt/homebrew/lib",
-                "-lSDL2main",
-                "-lSDL2",
-                "-Wl,-framework,Cocoa",
-                "-o",
-                "main-sdl"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "problemMatcher": ["$gcc"]
-        },
-        {
-            "label": "build physics-test (debug)",
-            "type": "shell",
-            "command": "/usr/bin/clang++",
-            "args": [
-                "-std=c++17",
-                "-g",
-                "-O0",
-                "physics-test.cpp",
-                "Player.cpp",
-                "Enemy.cpp",
-                "Bokobolin.cpp",
-                "-o",
-                "physics-test"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": false
             },
             "problemMatcher": ["$gcc"]
         }

@@ -1,6 +1,6 @@
 # Worklist
 
-Goal: finish this project in ~7-9 days. Focus is on mechanics, physics, and
+Goal: finish this project in ~9-10 days. Focus is on mechanics, physics and
 C++ fundamentals — not full content production, so asset breadth (more
 enemies, more weapons) is deliberately deferred past this list.
 
