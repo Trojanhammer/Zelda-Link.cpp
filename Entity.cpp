@@ -11,16 +11,19 @@
         if(posX == basePosX && posY == basePosY){
             isReturn = false;
             isKnocked = false;
+            ReturnAfterKnocked = false;
         }
     }
 
     void Entity::KnockBack(float VxOpponent, float VyOpponent){
         vX = VxOpponent;
         vY = VyOpponent;
+        isKnocked = true;
     }
     void Entity::UpdateKnock(){
         if(ReturnAfterKnocked){
             Return(RecallKnocked);
+            return;
         }
         vX *= 0.90;
         vY *= 0.90;
