@@ -40,7 +40,8 @@ int main(int argc, char* argv[]){
     800,500,
     SDL_WINDOW_SHOWN);
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC); // "|" means use both
+    // accelerated tells the computer to use its gpu while presentvsync helps to maintain 60 fps since the cpu will wait before gpu sends the frame.
 
     bool isRunning = true;
     SDL_Event event;
@@ -138,7 +139,6 @@ int main(int argc, char* argv[]){
 
             if (!anyEnemyLive){
                 currentState = AllEnemyDead;
-                break;
             }
             else{
                 currentState = FirstTurn;

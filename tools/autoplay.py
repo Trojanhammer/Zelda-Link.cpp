@@ -130,6 +130,10 @@ def build(root, build_dir, source, start_state, states):
     for marker in (MARKER, AFTER_LOOP_MARKER):
         if text.count(marker) != 1:
             sys.exit(f"expected `{marker}` exactly once in main.cpp (the instrumentation goes right before it)")
+    # Vsync would cap the game at 60 fps, so a round takes seconds instead of milliseconds. It does not matter for
+    # the game logic, so the test copy runs without it.
+    text = re.sub(r"\|\s*SDL_RENDERER_PRESENTVSYNC", "", text)                       # ACCELERATED | PRESENTVSYNC -> ACCELERATED
+    text = text.replace("SDL_RENDERER_PRESENTVSYNC", "SDL_RENDERER_ACCELERATED")    # PRESENTVSYNC alone -> ACCELERATED
     text = text.replace(MARKER, INSTRUMENTATION + MARKER)
     text = text.replace(AFTER_LOOP_MARKER,
                         'std::cerr << (std::string("[final] ") + std::to_string((int)currentState) + "\\n");\n    ' + AFTER_LOOP_MARKER)
