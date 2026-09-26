@@ -7,10 +7,10 @@ Player::Player(){
     name = "Link";
     health = 100;
     maxHealth = 100;
-    posX = 150;
-    posY = 300;
-    basePosX = 150;
-    basePosY = 300;
+    posX = 350;
+    posY = 350;
+    basePosX = 350;
+    basePosY = 350;
 }
 void Player::Attack(){
 
@@ -37,8 +37,6 @@ void Player::Attack(){
     ratioY = dY/NormalizedHypotenous;
     vX = velocity * ratioX;
     vY = velocity * ratioY;
-
-    std::cout << "Hypotenous : " << NormalizedHypotenous << std::endl;
 
     // Check if too near or not to prevent wall bug
     if (NormalizedHypotenous <= velocity ){

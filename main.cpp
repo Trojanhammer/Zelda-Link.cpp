@@ -8,6 +8,24 @@
 #include <cmath>
 
 #include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
+
+void DrawSprite(SDL_Renderer* renderer,SDL_Texture* texture, float centerX, float centerY ,float scale){
+    if (texture == nullptr) return; // check image is exist, use return so dont crash the game
+    int w = 0;
+    int h = 0;
+
+    // Ask texture(image) about its size
+    SDL_QueryTexture(texture,nullptr,nullptr, &w, &h);
+    SDL_Rect dst; // destination
+    dst.w = (int)(w * scale);
+    dst.h = (int)(h * scale);
+    dst.x = (int)(centerX - dst.w /2); // Change value of X .Ke kiri sikit
+    dst.y = (int)(centerY - dst.h /2); // Ke atas sikit
+
+    SDL_RenderCopy(renderer, texture,nullptr, &dst);
+}
 
 // main fx is the entry point of the program
 int main(int argc, char* argv[]){
@@ -32,7 +50,7 @@ int main(int argc, char* argv[]){
     int currentEnemyIndex = 0;
     unsigned int turn = 0; // can be 0 and (+)
 
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_Window* window = SDL_CreateWindow
     ("Zelda-Link",
     SDL_WINDOWPOS_CENTERED,
@@ -42,6 +60,21 @@ int main(int argc, char* argv[]){
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC); // "|" means use both
     // accelerated tells the computer to use its gpu while presentvsync helps to maintain 60 fps since the cpu will wait before gpu sends the frame.
+    
+    // Put image to texture
+    SDL_Texture* link_texture = IMG_LoadTexture(renderer, "assets/compressed/link.png");
+    SDL_Texture* bokobolin_texture = IMG_LoadTexture(renderer, "assets/compressed/bokobolin.png");
+    SDL_Texture* stalfos_texture = IMG_LoadTexture(renderer, "assets/compressed/stalfos.png");
+    const float spriteScale = 1.0f;
+
+    // Put and play music
+    Mix_Music* music = nullptr;
+    if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT,2,2048)==0){
+        music = Mix_LoadMUS("assets/audio/wiiu-shop.mp3");
+        if(music != nullptr){
+            Mix_PlayMusic(music,-1); // -1 to play infinitely
+        }
+    }
 
     bool isRunning = true;
     SDL_Event event;
@@ -53,13 +86,13 @@ int main(int argc, char* argv[]){
     // smart pointers
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
-    auto Bokobolin = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 100, .posY = 50, .basePosX = 100, .basePosY = 50, .vX = 0, .vY = 0});
-    auto Stalfos = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 250, .posY = 160, .basePosX = 250, .basePosY = 160, .vX = 0, .vY = 0});
+    auto Bokobolin = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
+    auto Stalfos = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
     
     std::vector<Enemy*> enemies; // make another raw pointers in vector that points towards each enemy pointers
     enemies.push_back(Bokobolin.get());
     enemies.push_back(Stalfos.get());
-    std::cout << "Your name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin -> name << " & " << Stalfos -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game";
+    std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin -> name << " & " << Stalfos -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
     
     while(isRunning){
 //-----------------------------------------------------------------------------------------------------------------
@@ -179,6 +212,7 @@ int main(int argc, char* argv[]){
 
         if ((currentState==EnemyRecovered) && (enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY) && (enemies[currentEnemyIndex] -> MainPlayer -> posX == enemies[currentEnemyIndex] -> MainPlayer-> basePosX && enemies[currentEnemyIndex] -> MainPlayer -> posY == enemies[currentEnemyIndex] -> MainPlayer -> basePosY)){ // When done attack & return
             currentState = NextTurn;
+            std::cout << "Health Player left : " << MainPlayer->health << std::endl;
             turn--;
             }
 
@@ -190,10 +224,15 @@ int main(int argc, char* argv[]){
     
         
 //-----------------------------------------------------------------------------------------------------------------
-
+        
         // Part 3 : Rendering
         SDL_SetRenderDrawColor(renderer, 255,255,255,255);
         SDL_RenderClear(renderer);
+        
+        // SDL2 lukis X coord and Y lain.tapi physics in game tetap attack ke posX,posY asal.
+        DrawSprite(renderer,link_texture,MainPlayer -> posX, MainPlayer -> posY,spriteScale);
+        DrawSprite(renderer,bokobolin_texture,Bokobolin -> posX, Bokobolin -> posY,spriteScale);
+        DrawSprite(renderer,stalfos_texture,Stalfos -> posX, Stalfos -> posY,spriteScale);
 
         if(currentState ==ChooseWeapon){
             // print ayat 
@@ -210,6 +249,14 @@ int main(int argc, char* argv[]){
         SDL_RenderPresent(renderer);
 
     }
+    SDL_DestroyTexture(link_texture);
+    SDL_DestroyTexture(bokobolin_texture);
+    SDL_DestroyTexture(stalfos_texture);
+    if(music != nullptr){
+        Mix_FreeMusic(music); // freed the music obj
+    }
+    Mix_CloseAudio();
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }

@@ -40,7 +40,7 @@ TOOLS_DIR = Path(__file__).resolve().parent
 
 # Same flags as the build command in README.md.
 CXXFLAGS = ["-std=c++17", "-g", "-O0", "-I/opt/homebrew/include/SDL2", "-D_THREAD_SAFE"]
-LDFLAGS = ["-L/opt/homebrew/lib", "-lSDL2main", "-lSDL2", "-Wl,-framework,Cocoa"]
+LDFLAGS = ["-L/opt/homebrew/lib", "-lSDL2main", "-lSDL2", "-lSDL2_image", "-lSDL2_mixer", "-Wl,-framework,Cocoa"]
 
 # Names of two states in your enum, used for the rule "every living enemy attacks exactly once per enemy turn".
 # If you rename them, change them here (if they are not in the enum the rule is simply skipped).
@@ -183,12 +183,14 @@ def main():
     exe = build(root, build_dir, source, args.start, states)
 
     timeout = args.timeout or (len(rounds) * (args.step + 0.3) + 2 * args.step + 20)
-    env = dict(os.environ, SDL_VIDEODRIVER="dummy", AUTOPLAY_STEP=str(args.step))
+    # dummy video = no window, dummy audio = the game's music does not play out loud during a test
+    env = dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="dummy", AUTOPLAY_STEP=str(args.step))
     out_file, err_file = build_dir / "run.out", build_dir / "run.err"
     print(f"playing: rounds={rounds or 'none'} start={args.start or idle_state} (timeout {timeout:.0f}s)\n")
     timed_out = False
     with open(out_file, "w") as out, open(err_file, "w") as err:
-        process = subprocess.Popen([str(exe), *rounds], stdout=out, stderr=err, env=env)
+        # cwd=root so that files the game loads by relative path (assets/...) are found
+        process = subprocess.Popen([str(exe), *rounds], stdout=out, stderr=err, env=env, cwd=str(root))
         try:
             process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:

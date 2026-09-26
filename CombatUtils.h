@@ -6,10 +6,10 @@ inline void ApplyDamage(int& health, u_int8_t& damage,bool& isAlive){
     health -=damage;
     if (health<=0){
         isAlive=false;
-        std::cout << "DEAD";
+        std::cout << "DEAD" << std::endl;
     }
     else{
-        std::cout << "Health " << health << " left.";
+        std::cout << "Health " << health << " left." << std::endl;
     }
 
 }

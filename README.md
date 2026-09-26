@@ -42,7 +42,7 @@ The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks
 
 ```bash
 clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Entity.cpp Player.cpp \
-  -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE -L/opt/homebrew/lib -lSDL2main -lSDL2 -Wl,-framework,Cocoa \
+  -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE -L/opt/homebrew/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_mixer -Wl,-framework,Cocoa \
   -o game
 ```
 
