@@ -9,28 +9,22 @@
         Recall.pop_back(); // Delete last pair 
 
         if(posX == basePosX && posY == basePosY){
-            isReturn = false;
-            isKnocked = false;
-            ReturnAfterKnocked = false;
+            currentState = Idle;
         }
     }
 
     void Entity::KnockBack(float VxOpponent, float VyOpponent){
         vX = VxOpponent;
         vY = VyOpponent;
-        isKnocked = true;
     }
     void Entity::UpdateKnock(){
-        if(ReturnAfterKnocked){
-            Return(RecallKnocked);
-            return;
-        }
+
         vX *= 0.90;
         vY *= 0.90;
         if(std::abs(vX) <0.1 && std::abs(vY) <0.1){
             vX=0;
             vY=0;
-            ReturnAfterKnocked = true;
+            currentState = Recalling;
             return;
         }
         RecallKnocked.push_back({posX, posY});
@@ -44,4 +38,34 @@
         };
 
         ApplyDamage(health,damage,isAlive);
+    }
+
+    void Entity::Attack(float OppositionX, float OppositionY){
+
+        // Assume use same speed which is 6 px per frame
+        float dX = OppositionX - posX;
+        float dY = OppositionY - posY;
+        if(dX==0 && dY==0){ // kills this fx once arrives to location
+            currentState = Knocking;
+            return;
+        }
+        RecallAttack.push_back({posX,posY}); // record position of X and Y
+        float ratioX =0;
+        float ratioY = 0;
+        NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
+        ratioX = dX/NormalizedHypotenous;
+        ratioY = dY/NormalizedHypotenous;
+        vX = 6 * ratioX;
+        vY = 6 * ratioY;
+
+        // Check if already arrived or not to prevent wall bug
+        if (NormalizedHypotenous <= 6){
+            posX = OppositionX;
+            posY = OppositionY;
+
+        }
+        else{
+        posX += vX;
+        posY += vY;
+        }
     }

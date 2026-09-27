@@ -15,5 +15,4 @@ class Player : public Entity{
 
     public:
         Player(); // Constructor must have same name as class name and dont have void.memang macamtu.
-        void Attack() override;
 };

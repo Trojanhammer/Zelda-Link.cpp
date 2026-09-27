@@ -34,16 +34,11 @@ int main(int argc, char* argv[]){
     enum GameState {// Enumuration is for readability for users like chooseweapon is read as "0" to computer and "1" for chooseenemy and goes on
         ChooseWeapon, // GameState is datatype
         ChooseEnemy,
-        DealDamage,
-        PlayerAttacking,
-        EnemyAttacking,
         StartEnemyTurn,
         AllEnemyDead,
         PlayerDie,
         FirstTurn,
         NextTurn,
-        PlayerRecovered,
-        EnemyRecovered
     };
 
     GameState currentState = ChooseWeapon;
@@ -116,11 +111,11 @@ int main(int argc, char* argv[]){
                 else if(currentState == ChooseEnemy){
                     if(event.key.keysym.sym == SDLK_1 && Bokobolin -> isAlive){
                         MainPlayer -> TargetEnemy = Bokobolin.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-                        currentState = DealDamage;
+                        MainPlayer-> currentState = Player::DealDamage;
                     }
                     else if(event.key.keysym.sym == SDLK_2 && Stalfos -> isAlive){
                         MainPlayer -> TargetEnemy = Stalfos.get();
-                        currentState = DealDamage;
+                        MainPlayer -> currentState = Player::DealDamage;
                     }
                    
                 }
@@ -133,30 +128,59 @@ int main(int argc, char* argv[]){
         if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
             // Part 2 : Physics 
 
-            if(currentState == DealDamage){ // seperate from attack physics because this one only run once since turn based game
-            MainPlayer -> EquippedWeapon -> Attack();
-            MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-            currentState = PlayerAttacking;
+            // if(MainPlayer-> currentState == Player::DealDamage){ // seperate from attack physics because this one only run once since turn based game
+            // MainPlayer -> EquippedWeapon -> Attack();
+            // MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+            // currentState = PlayerAttacking;
+            // }
+            // if(currentState == PlayerAttacking){
+            // MainPlayer -> Attack(); // have both attacking and returning physics
+            // }
+            // if (MainPlayer->isKnocking){
+            // MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
+            // }
+            // if(MainPlayer -> TargetEnemy -> isKnocked){
+            // MainPlayer -> TargetEnemy -> UpdateKnock();
+            // MainPlayer -> isKnocking = false;
+            // }
+//--------------------------------------------------------
+            if(MainPlayer -> currentState == Player:: DealDamage){ // seperate from attack physics because this one only run once since turn based game
+                MainPlayer -> EquippedWeapon -> Attack(); // to update durability of weapon
+                MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+                MainPlayer -> currentState = Player::Attacking;
             }
-            if(currentState == PlayerAttacking){
-            MainPlayer -> Attack(); // have both attacking and returning physics
+            if (MainPlayer -> currentState == Player::Attacking){
+                MainPlayer -> Attack(MainPlayer -> TargetEnemy -> posX, MainPlayer -> TargetEnemy -> posY);
+                // then dalam function attack entity, kalau dah sampai ke enmy,currentstate bertukar jadi knocking
             }
-            if (MainPlayer->isKnocking){
-            MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
+            if(MainPlayer -> currentState == Player::Knocking){
+                MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
+                MainPlayer -> currentState = Player::Recalling;
             }
-            if(MainPlayer -> TargetEnemy -> isKnocked){
-            MainPlayer -> TargetEnemy -> UpdateKnock();
-            MainPlayer -> isKnocking = false;
+            else if(MainPlayer -> currentState == Player::Recalling){
+                MainPlayer-> Return(MainPlayer -> RecallAttack);
+                MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked;
             }
-            if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){
-            currentState = PlayerRecovered;
+            if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
+                MainPlayer -> TargetEnemy -> UpdateKnock();
             }
+            else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling){
+                MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> RecallKnocked);
+            }
+            if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
+                MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
+                currentState = StartEnemyTurn;      
+            }
+//------------------------------------------------------------------
+        //     if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){
+        //     currentState = PlayerRecovered;
+        //     }
             
-            if ((MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY) && (MainPlayer -> TargetEnemy -> posX == MainPlayer -> TargetEnemy -> basePosX && MainPlayer -> TargetEnemy -> posY == MainPlayer -> TargetEnemy -> basePosY)){ // When done attack & return
-            MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
-            currentState = StartEnemyTurn;
-            }
-        }
+        //     if ((MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY) && (MainPlayer -> TargetEnemy -> posX == MainPlayer -> TargetEnemy -> basePosX && MainPlayer -> TargetEnemy -> posY == MainPlayer -> TargetEnemy -> basePosY)){ // When done attack & return
+        //     MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
+        //     currentState = StartEnemyTurn;
+        //     }
+}
 //-------------------------------------------------------------------------------
     // Use "if" for event that happen not on every frame or situations.    
     // Enemy Turn
@@ -181,40 +205,47 @@ int main(int argc, char* argv[]){
             while(!(enemies[currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
                 currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
             }
-            currentState = DealDamage;
+            enemies[currentEnemyIndex] -> currentState = Enemy::DealDamage;
         }
         if (currentState == NextTurn){
             currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
-            currentState = DealDamage;
+            enemies[currentEnemyIndex] -> currentState = Enemy::DealDamage;
             if(turn == 0){
                 currentState = ChooseWeapon;
             }
         }
-        if (currentState == DealDamage){ // Runs not on every frame
+        if (enemies[currentEnemyIndex]-> currentState == Enemy::DealDamage){ // Runs not on every frame
             MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
-            currentState = EnemyAttacking;
+            enemies[currentEnemyIndex] -> currentState = Enemy::Attacking;
         }
 
-        if (currentState == EnemyAttacking){ // Runs mostly on every frame
-            enemies[currentEnemyIndex] -> Attack();
+        if (enemies[currentEnemyIndex] -> currentState == Enemy::Attacking){ // Runs mostly on every frame
+            enemies[currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY);
         }
-        if (enemies[currentEnemyIndex] -> isKnocking){
+        if (enemies[currentEnemyIndex] -> currentState == Enemy::Knocking){
             enemies[currentEnemyIndex] -> MainPlayer -> KnockBack(enemies[currentEnemyIndex] -> vX, enemies[currentEnemyIndex] -> vY);
-            enemies[currentEnemyIndex] -> isKnocking = false;
+            enemies[currentEnemyIndex] -> currentState = Enemy::Recalling;
         }
-
-        if(enemies[currentEnemyIndex] -> MainPlayer -> isKnocked){
-            enemies[currentEnemyIndex] -> MainPlayer -> UpdateKnock();
+        else if(enemies[currentEnemyIndex] -> currentState == Enemy::Recalling){
+            enemies[currentEnemyIndex] -> Return(enemies[currentEnemyIndex] -> RecallAttack);
+            MainPlayer -> currentState = Player::Knocked;
         }
-        if ((currentState ==EnemyAttacking) && (enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY)){
-            currentState = EnemyRecovered; // ensure enemy dont attack again IF arrived earlier & prevent this condition to run if no buttons is clicked.
+        if(MainPlayer -> currentState == Player::Knocked){
+            MainPlayer -> UpdateKnock();
         }
-
-        if ((currentState==EnemyRecovered) && (enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY) && (enemies[currentEnemyIndex] -> MainPlayer -> posX == enemies[currentEnemyIndex] -> MainPlayer-> basePosX && enemies[currentEnemyIndex] -> MainPlayer -> posY == enemies[currentEnemyIndex] -> MainPlayer -> basePosY)){ // When done attack & return
-            currentState = NextTurn;
-            std::cout << "Health Player left : " << MainPlayer->health << std::endl;
+        else if(MainPlayer -> currentState == Player::Recalling){
+            MainPlayer -> Return(MainPlayer -> RecallKnocked);
+        }
+        if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
+            currentState = NextTurn;      
             turn--;
-            }
+        }
+
+        // if ((currentState==EnemyRecovered) && (enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY) && (enemies[currentEnemyIndex] -> MainPlayer -> posX == enemies[currentEnemyIndex] -> MainPlayer-> basePosX && enemies[currentEnemyIndex] -> MainPlayer -> posY == enemies[currentEnemyIndex] -> MainPlayer -> basePosY)){ // When done attack & return
+        //     currentState = NextTurn;
+        //     std::cout << "Health Player left : " << MainPlayer->health << std::endl;
+        //     turn--;
+        //     }
 
         if (!(MainPlayer -> isAlive)){
             currentState = PlayerDie;

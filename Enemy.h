@@ -34,6 +34,5 @@ class Enemy : public Entity{
         Enemy(EnemyStats stats);
         // "virtual" means this fx can have many forms for child class (polymorphism).
         // virtual void TakeAction();
-        void Attack() override;
         virtual ~Enemy() = default; // destructor
 };
