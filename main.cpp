@@ -39,11 +39,17 @@ int main(int argc, char* argv[]){
         PlayerDie,
         FirstTurn,
         NextTurn,
+        CompleteGame,
+        StartLevel
     };
 
     GameState currentState = ChooseWeapon;
     int currentEnemyIndex = 0;
     unsigned int turn = 0; // can be 0 and (+)
+
+    u_int8_t currentLevel = 0;
+    u_int8_t MaxLevel = 3;
+    
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_Window* window = SDL_CreateWindow
@@ -81,15 +87,44 @@ int main(int argc, char* argv[]){
     // smart pointers
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
-    auto Bokobolin = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
-    auto Stalfos = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
-    
-    std::vector<Enemy*> enemies; // make another raw pointers in vector that points towards each enemy pointers
-    enemies.push_back(Bokobolin.get());
-    enemies.push_back(Stalfos.get());
-    std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin -> name << " & " << Stalfos -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
+    std::vector<std::vector<Enemy*>> levelEnemies; // make another raw pointers in vector that points towards each enemy pointers.It stores the pointers in vector
+    auto Bokobolin_0 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
+    auto Stalfos_0 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
+    levelEnemies.push_back({Bokobolin_0.get(), Stalfos_0.get()}); 
+    // declare the pointer(var) outside of if scope
+    std::unique_ptr<Enemy> Bokobolin_1;
+    std::unique_ptr<Enemy> Stalfos_1;
+    std::unique_ptr<Enemy> Bokobolin_2;
+    std::unique_ptr<Enemy> Stalfos_2;
+
+    //std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin_0 -> name << " & " << Stalfos_0 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
     
     while(isRunning){
+
+        if (currentState == AllEnemyDead){ // This condition will become true when one level completed
+            if(currentLevel +1 < MaxLevel){
+                currentLevel++;
+                currentState = StartLevel;
+            }
+            else {
+                currentState = CompleteGame;
+            }
+        }
+
+        if (currentState == StartLevel){ // To prevent game from loading the all enemy object all at once.
+            if(currentLevel ==1){
+                Bokobolin_1 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
+                Stalfos_1 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 120, .maxHealth = 120, .attackPower = 35, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
+                levelEnemies.push_back({Bokobolin_1.get(), Stalfos_1.get()});
+            }
+            else{
+                Bokobolin_2 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 150, .maxHealth = 150, .attackPower = 40, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
+                Stalfos_2 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 180, .maxHealth = 180, .attackPower = 45, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
+                levelEnemies.push_back({Bokobolin_2.get(), Stalfos_2.get()});
+            }
+            currentState = ChooseWeapon;
+        }
+
 //-----------------------------------------------------------------------------------------------------------------
         // Part 1: Input Handling 
         while(SDL_PollEvent(&event)){
@@ -108,42 +143,49 @@ int main(int argc, char* argv[]){
                     }
                     
                 }
+            
                 else if(currentState == ChooseEnemy){
-                    if(event.key.keysym.sym == SDLK_1 && Bokobolin -> isAlive){
-                        MainPlayer -> TargetEnemy = Bokobolin.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-                        MainPlayer-> currentState = Player::DealDamage;
+                    if (currentLevel ==0){
+                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_0 -> isAlive){
+                            MainPlayer -> TargetEnemy = Bokobolin_0.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                            MainPlayer-> currentState = Player::DealDamage;
+                        }
+                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_0 -> isAlive){
+                            MainPlayer -> TargetEnemy = Stalfos_0.get();
+                            MainPlayer -> currentState = Player::DealDamage;
+                        }
                     }
-                    else if(event.key.keysym.sym == SDLK_2 && Stalfos -> isAlive){
-                        MainPlayer -> TargetEnemy = Stalfos.get();
-                        MainPlayer -> currentState = Player::DealDamage;
-                    }
+                    else if(currentLevel ==1){
+                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_1 -> isAlive){
+                            MainPlayer -> TargetEnemy = Bokobolin_1.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                            MainPlayer-> currentState = Player::DealDamage;
+                        }
+                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_1 -> isAlive){
+                            MainPlayer -> TargetEnemy = Stalfos_1.get();
+                            MainPlayer -> currentState = Player::DealDamage;
+                        }
                    
+                    }
+                    else{
+                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_2 -> isAlive){
+                            MainPlayer -> TargetEnemy = Bokobolin_2.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                            MainPlayer-> currentState = Player::DealDamage;
+                        }
+                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_2 -> isAlive){
+                            MainPlayer -> TargetEnemy = Stalfos_2.get();
+                            MainPlayer -> currentState = Player::DealDamage;
+                        }
+                    }
                 }
             }
-
         }
+
 //-----------------------------------------------------------------------------------------------------------------
 
         // Checks if player has choose .If not, then skip to render.
         if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
             // Part 2 : Physics 
 
-            // if(MainPlayer-> currentState == Player::DealDamage){ // seperate from attack physics because this one only run once since turn based game
-            // MainPlayer -> EquippedWeapon -> Attack();
-            // MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-            // currentState = PlayerAttacking;
-            // }
-            // if(currentState == PlayerAttacking){
-            // MainPlayer -> Attack(); // have both attacking and returning physics
-            // }
-            // if (MainPlayer->isKnocking){
-            // MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
-            // }
-            // if(MainPlayer -> TargetEnemy -> isKnocked){
-            // MainPlayer -> TargetEnemy -> UpdateKnock();
-            // MainPlayer -> isKnocking = false;
-            // }
-//--------------------------------------------------------
             if(MainPlayer -> currentState == Player:: DealDamage){ // seperate from attack physics because this one only run once since turn based game
                 MainPlayer -> EquippedWeapon -> Attack(); // to update durability of weapon
                 MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
@@ -171,23 +213,13 @@ int main(int argc, char* argv[]){
                 MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
                 currentState = StartEnemyTurn;      
             }
-//------------------------------------------------------------------
-        //     if (MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY){
-        //     currentState = PlayerRecovered;
-        //     }
-            
-        //     if ((MainPlayer -> posX == MainPlayer -> basePosX && MainPlayer -> posY == MainPlayer -> basePosY) && (MainPlayer -> TargetEnemy -> posX == MainPlayer -> TargetEnemy -> basePosX && MainPlayer -> TargetEnemy -> posY == MainPlayer -> TargetEnemy -> basePosY)){ // When done attack & return
-        //     MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
-        //     currentState = StartEnemyTurn;
-        //     }
-}
-//-------------------------------------------------------------------------------
+        }
     // Use "if" for event that happen not on every frame or situations.    
     // Enemy Turn
         else if (currentState == StartEnemyTurn){
             bool anyEnemyLive=false; // Check if any of enemy still alive
             
-            for (Enemy* e : enemies){
+            for (Enemy* e : levelEnemies[currentLevel]){
                 if(e->isAlive){
                     anyEnemyLive=true;
                     turn++; // How many turns enemy have depends on how many is alive right now
@@ -202,32 +234,32 @@ int main(int argc, char* argv[]){
             }
         }
         if (currentState == FirstTurn){
-            while(!(enemies[currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
-                currentEnemyIndex=(currentEnemyIndex+1) % enemies.size();
+            while(!(levelEnemies[currentLevel][currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
+                currentEnemyIndex=(currentEnemyIndex+1) % levelEnemies[currentLevel].size();
             }
-            enemies[currentEnemyIndex] -> currentState = Enemy::DealDamage;
+            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::DealDamage;
         }
         if (currentState == NextTurn){
-            currentEnemyIndex=(currentEnemyIndex+1) % enemies.size(); // revert back the turns
-            enemies[currentEnemyIndex] -> currentState = Enemy::DealDamage;
+            currentEnemyIndex=(currentEnemyIndex+1) % levelEnemies[currentLevel].size(); // revert back the turns
+            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::DealDamage;
             if(turn == 0){
                 currentState = ChooseWeapon;
             }
         }
-        if (enemies[currentEnemyIndex]-> currentState == Enemy::DealDamage){ // Runs not on every frame
-            MainPlayer -> TakeDamage(enemies[currentEnemyIndex] -> attackPower);
-            enemies[currentEnemyIndex] -> currentState = Enemy::Attacking;
+        if (levelEnemies[currentLevel][currentEnemyIndex]-> currentState == Enemy::DealDamage){ // Runs not on every frame
+            MainPlayer -> TakeDamage(levelEnemies[currentLevel][currentEnemyIndex] -> attackPower);
+            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Attacking;
         }
 
-        if (enemies[currentEnemyIndex] -> currentState == Enemy::Attacking){ // Runs mostly on every frame
-            enemies[currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY);
+        if (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Attacking){ // Runs mostly on every frame
+            levelEnemies[currentLevel][currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY);
         }
-        if (enemies[currentEnemyIndex] -> currentState == Enemy::Knocking){
-            enemies[currentEnemyIndex] -> MainPlayer -> KnockBack(enemies[currentEnemyIndex] -> vX, enemies[currentEnemyIndex] -> vY);
-            enemies[currentEnemyIndex] -> currentState = Enemy::Recalling;
+        if (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Knocking){
+            levelEnemies[currentLevel][currentEnemyIndex] -> MainPlayer -> KnockBack(levelEnemies[currentLevel][currentEnemyIndex] -> vX, levelEnemies[currentLevel][currentEnemyIndex] -> vY);
+            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Recalling;
         }
-        else if(enemies[currentEnemyIndex] -> currentState == Enemy::Recalling){
-            enemies[currentEnemyIndex] -> Return(enemies[currentEnemyIndex] -> RecallAttack);
+        else if(levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Recalling){
+            levelEnemies[currentLevel][currentEnemyIndex] -> Return(levelEnemies[currentLevel][currentEnemyIndex] -> RecallAttack);
             MainPlayer -> currentState = Player::Knocked;
         }
         if(MainPlayer -> currentState == Player::Knocked){
@@ -236,21 +268,16 @@ int main(int argc, char* argv[]){
         else if(MainPlayer -> currentState == Player::Recalling){
             MainPlayer -> Return(MainPlayer -> RecallKnocked);
         }
-        if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
+        if ((MainPlayer -> currentState == Player::Idle) && (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Idle)){
             currentState = NextTurn;      
             turn--;
         }
-
-        // if ((currentState==EnemyRecovered) && (enemies[currentEnemyIndex] -> posX == enemies[currentEnemyIndex] -> basePosX && enemies[currentEnemyIndex] -> posY == enemies[currentEnemyIndex] -> basePosY) && (enemies[currentEnemyIndex] -> MainPlayer -> posX == enemies[currentEnemyIndex] -> MainPlayer-> basePosX && enemies[currentEnemyIndex] -> MainPlayer -> posY == enemies[currentEnemyIndex] -> MainPlayer -> basePosY)){ // When done attack & return
-        //     currentState = NextTurn;
-        //     std::cout << "Health Player left : " << MainPlayer->health << std::endl;
-        //     turn--;
-        //     }
 
         if (!(MainPlayer -> isAlive)){
             currentState = PlayerDie;
             //break; // Break the loop when player died
         }
+
 
     
         
@@ -262,8 +289,8 @@ int main(int argc, char* argv[]){
         
         // SDL2 lukis X coord and Y lain.tapi physics in game tetap attack ke posX,posY asal.
         DrawSprite(renderer,link_texture,MainPlayer -> posX, MainPlayer -> posY,spriteScale);
-        DrawSprite(renderer,bokobolin_texture,Bokobolin -> posX, Bokobolin -> posY,spriteScale);
-        DrawSprite(renderer,stalfos_texture,Stalfos -> posX, Stalfos -> posY,spriteScale);
+        DrawSprite(renderer,bokobolin_texture,levelEnemies[currentLevel][0] -> posX, levelEnemies[currentLevel][0] -> posY,spriteScale);
+        DrawSprite(renderer,stalfos_texture,levelEnemies[currentLevel][1] -> posX, levelEnemies[currentLevel][1] -> posY,spriteScale);
 
         if(currentState ==ChooseWeapon){
             // print ayat 
@@ -276,6 +303,9 @@ int main(int argc, char* argv[]){
         }
         else if (currentState == PlayerDie){
             /// print instruction of you lose this game
+        }
+        else if (currentState == CompleteGame){
+
         }
         SDL_RenderPresent(renderer);
 

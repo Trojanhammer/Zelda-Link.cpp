@@ -73,11 +73,11 @@ clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Entity.cpp Player.cpp \
 ## Future work
 
 - Draw Link and the 2 enemies as actual sprites in the SDL2 window using the position data that already exists
-- Use State Machine per Entity in Entity Class to minimize bug and compelexity of different bool combination as of now
 - Sound effects for attacks
 - An intro screen before the game starts
 - Package builds for Windows, macOS, and Linux
 - Move enemy/weapon stats into a data table instead of hardcoded constructor values, to scale past two enemy types without writing a new class per enemy
+- Add 3 levels 
 - Long-shot goal: get this running on a jailbroken Wii
 
 ## Status
