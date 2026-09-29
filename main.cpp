@@ -66,7 +66,7 @@ int main(int argc, char* argv[]){
     SDL_Texture* link_texture = IMG_LoadTexture(renderer, "assets/compressed/link.png");
     SDL_Texture* bokobolin_texture = IMG_LoadTexture(renderer, "assets/compressed/bokobolin.png");
     SDL_Texture* stalfos_texture = IMG_LoadTexture(renderer, "assets/compressed/stalfos.png");
-    const float spriteScale = 1.0f;
+    const float spriteScale[3] = {1.0f,1.25f,1.5f};
 
     // Put and play music
     Mix_Music* music = nullptr;
@@ -87,15 +87,27 @@ int main(int argc, char* argv[]){
     // smart pointers
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
-    std::vector<std::vector<Enemy*>> levelEnemies; // make another raw pointers in vector that points towards each enemy pointers.It stores the pointers in vector
-    auto Bokobolin_0 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
-    auto Stalfos_0 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
-    levelEnemies.push_back({Bokobolin_0.get(), Stalfos_0.get()}); 
-    // declare the pointer(var) outside of if scope
-    std::unique_ptr<Enemy> Bokobolin_1;
-    std::unique_ptr<Enemy> Stalfos_1;
-    std::unique_ptr<Enemy> Bokobolin_2;
-    std::unique_ptr<Enemy> Stalfos_2;
+    std::vector<std::vector<std::unique_ptr<Enemy>>> levelEnemies; // store  unique_ptr in 2d vector (dynamic array)
+
+    struct BlueprintLevel {
+            Enemy::EnemyStats BokoData;
+            Enemy::EnemyStats StalfosData;
+        };
+
+    const std::vector<BlueprintLevel> LevelStats {
+        {   // level_0
+            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0},
+            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0}
+        },
+        {   // level_1
+            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0},
+            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0},
+        },
+        {   // level_2
+            {.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 350, .posY = 240, .basePosX = 350, .basePosY = 240, .vX = 0, .vY = 0},
+            {.name = "Stalfos", .health = 120, .maxHealth = 120, .attackPower = 35, .posX = 350, .posY = 240, .basePosX = 350, .basePosY = 240, .vX = 0, .vY = 0}
+        }
+    };
 
     //std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin_0 -> name << " & " << Stalfos_0 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
     
@@ -110,18 +122,12 @@ int main(int argc, char* argv[]){
                 currentState = CompleteGame;
             }
         }
-
         if (currentState == StartLevel){ // To prevent game from loading the all enemy object all at once.
-            if(currentLevel ==1){
-                Bokobolin_1 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
-                Stalfos_1 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 120, .maxHealth = 120, .attackPower = 35, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
-                levelEnemies.push_back({Bokobolin_1.get(), Stalfos_1.get()});
-            }
-            else{
-                Bokobolin_2 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Bokobolin", .health = 150, .maxHealth = 150, .attackPower = 40, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0});
-                Stalfos_2 = std::make_unique<Enemy>(Enemy::EnemyStats{.name = "Stalfos", .health = 180, .maxHealth = 180, .attackPower = 45, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0});
-                levelEnemies.push_back({Bokobolin_2.get(), Stalfos_2.get()});
-            }
+            std::vector<std::unique_ptr<Enemy>> e; // create vector that has unique_ptr
+            e.push_back(std::make_unique<Enemy>(LevelStats[currentLevel].BokoData));
+            e.push_back(std::make_unique<Enemy>(LevelStats[currentLevel].StalfosData));
+
+            levelEnemies.push_back(std::move(e)); // transfer the unique pointer task to levelEnemies;
             currentState = ChooseWeapon;
         }
 
@@ -145,39 +151,16 @@ int main(int argc, char* argv[]){
                 }
             
                 else if(currentState == ChooseEnemy){
-                    if (currentLevel ==0){
-                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_0 -> isAlive){
-                            MainPlayer -> TargetEnemy = Bokobolin_0.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                        if(event.key.keysym.sym == SDLK_1 && levelEnemies[currentLevel][0] -> isAlive){
+                            MainPlayer -> TargetEnemy = levelEnemies[currentLevel][0].get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
                             MainPlayer-> currentState = Player::DealDamage;
                         }
-                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_0 -> isAlive){
-                            MainPlayer -> TargetEnemy = Stalfos_0.get();
-                            MainPlayer -> currentState = Player::DealDamage;
-                        }
-                    }
-                    else if(currentLevel ==1){
-                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_1 -> isAlive){
-                            MainPlayer -> TargetEnemy = Bokobolin_1.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-                            MainPlayer-> currentState = Player::DealDamage;
-                        }
-                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_1 -> isAlive){
-                            MainPlayer -> TargetEnemy = Stalfos_1.get();
-                            MainPlayer -> currentState = Player::DealDamage;
-                        }
-                   
-                    }
-                    else{
-                        if(event.key.keysym.sym == SDLK_1 && Bokobolin_2 -> isAlive){
-                            MainPlayer -> TargetEnemy = Bokobolin_2.get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
-                            MainPlayer-> currentState = Player::DealDamage;
-                        }
-                        else if(event.key.keysym.sym == SDLK_2 && Stalfos_2 -> isAlive){
-                            MainPlayer -> TargetEnemy = Stalfos_2.get();
+                        else if(event.key.keysym.sym == SDLK_2 && levelEnemies[currentLevel][1] -> isAlive){
+                            MainPlayer -> TargetEnemy = levelEnemies[currentLevel][1].get();
                             MainPlayer -> currentState = Player::DealDamage;
                         }
                     }
                 }
-            }
         }
 
 //-----------------------------------------------------------------------------------------------------------------
@@ -218,8 +201,7 @@ int main(int argc, char* argv[]){
     // Enemy Turn
         else if (currentState == StartEnemyTurn){
             bool anyEnemyLive=false; // Check if any of enemy still alive
-            
-            for (Enemy* e : levelEnemies[currentLevel]){
+            for (const auto& e : levelEnemies[currentLevel]){ // make a reference(store address) for that unique pointer
                 if(e->isAlive){
                     anyEnemyLive=true;
                     turn++; // How many turns enemy have depends on how many is alive right now
@@ -288,9 +270,9 @@ int main(int argc, char* argv[]){
         SDL_RenderClear(renderer);
         
         // SDL2 lukis X coord and Y lain.tapi physics in game tetap attack ke posX,posY asal.
-        DrawSprite(renderer,link_texture,MainPlayer -> posX, MainPlayer -> posY,spriteScale);
-        DrawSprite(renderer,bokobolin_texture,levelEnemies[currentLevel][0] -> posX, levelEnemies[currentLevel][0] -> posY,spriteScale);
-        DrawSprite(renderer,stalfos_texture,levelEnemies[currentLevel][1] -> posX, levelEnemies[currentLevel][1] -> posY,spriteScale);
+        DrawSprite(renderer,link_texture,MainPlayer -> posX, MainPlayer -> posY,spriteScale[currentLevel]);
+        DrawSprite(renderer,bokobolin_texture,levelEnemies[currentLevel][0] -> posX, levelEnemies[currentLevel][0] -> posY,spriteScale[currentLevel]);
+        DrawSprite(renderer,stalfos_texture,levelEnemies[currentLevel][1] -> posX, levelEnemies[currentLevel][1] -> posY,spriteScale[currentLevel]);
 
         if(currentState ==ChooseWeapon){
             // print ayat 

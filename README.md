@@ -8,7 +8,7 @@
 
 A game-physics exploration in C++ and SDL2, built **from scratch with no game engine and no physics library**. The goal is to understand how movement, knockback and a Tears-of-the-Kingdom-style *recall* (replaying past positions in reverse) actually work under the hood, instead of relying on an engine that hides them. It doubles as a way to learn core C++: classes, inheritance, pointers and memory management.
 
-Originally a terminal-only combat loop, now being migrated to **SDL2** for actual rendering, using SDL2's built-in renderer.
+Renders with SDL2: sprites, background music, vsync.
 
 ## How I work on this
 
@@ -19,24 +19,25 @@ Every mechanic goes through the same loop:
 3. **Remove them.** Fix the cause, not the symptom.
 4. **Ask if there is a simpler way**, one with fewer places to go wrong.
 
-Example: the turn flow started as `currentState` plus many bools (`isKnocked`, `isKnocking`, `isReturn`, ...). It worked, but the bugs kept coming from those two disagreeing, for instance one shared `NONE` state that both the player and the enemy set and that only the enemy's check should have reacted to. The lesson is one state per actor instead of many bools, which is planned under Future work.
+Example: the turn flow started as `currentState` plus many bools (`isKnocked`, `isKnocking`, `isReturn`, ...). It worked, but the bugs kept coming from those two disagreeing, for instance one shared state that both the player and the enemy set and that only the enemy's check should have reacted to. The fix was one state per actor (`Entity::GameState`) instead of many bools shared across sides, so each entity's state can only ever be one thing at a time.
 
-The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability.
+The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability. There are 3 levels; the same two enemy types return each level with higher stats, built from one data table instead of separate hand-written variables per level.
 
-**Current focus:** the physics and the turn flow (approach, knockback, recall) and making them robust. Next up: drawing it with SDL2.
+**Current focus:** levels and code cleanup — the mechanics have to satisfy me before animation, attack sounds or other polish get added. Next physics step once that's done: a fixed timestep (movement by speed × time instead of a fixed amount per frame) and real overlap-based collision.
 
 ## Concepts practiced
 
 - **Classes & inheritance** — `Entity` as a base class, `Player`/`Enemy` as child classes.
 - **Structs vs classes** — `EnemyStats` used to bundle constructor data instead of long parameter lists
-- **Pointers & smart pointers** — `std::unique_ptr` for automatic memory cleanup, raw pointers (`Weapon*`, `Enemy*`) for non-owning references between objects
-- **Stack vs heap** — explored directly with a debugger (breakpoints + memory inspector) to inspect actual object layout in memory
-- **Input validation** — handling invalid choices, already-broken weapons, already-defeated enemies and `std::cin` failure states
+- **Pointers & smart pointers** — `std::unique_ptr` for automatic memory cleanup, raw pointers for non-owning references between objects
+- **Move semantics & ownership** — `levelEnemies` owns each enemy directly as a `unique_ptr`; learned the hard way that brace-initializing a container of a move-only type tries to copy it (`std::initializer_list` only ever gives const access), so it has to be built with `push_back` and moved in with `std::move`
+- **Stack vs heap** — explored directly with a debugger (breakpoints + memory inspector) to inspect actual object layout in memory; also where an object actually lives when it's owned by a `unique_ptr` versus a variable's own scope
 - **Basic 2D physics** — direction vectors, normalization, distance checks for "has this entity arrived at its target"
 - **Knockback and recall** — velocity with friction, and replaying stored positions in reverse to walk back to base
-- **State machines** — turn flow as states, and what goes wrong when one state serves two sides or when bools and states disagree
+- **State machines** — one `currentState` per entity instead of scattered bools; each side (player, enemy) checks and transitions its own state independently
+- **Data-driven design** — enemy stats per level live in one `LevelStats` table instead of a hand-written variable per level/enemy pair
 - **Automated testing** — a script that plays the game headless and checks rules every frame
-- **SDL2 fundamentals** — window/renderer setup, the event loop and why blocking the event loop (e.g. `SDL_Delay`) breaks rendering on macOS
+- **SDL2 fundamentals** — window/renderer setup, sprite drawing, background music, the event loop and why blocking it (e.g. `SDL_Delay`) breaks rendering on macOS
 
 ## Build
 
@@ -46,15 +47,17 @@ clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Entity.cpp Player.cpp \
   -o game
 ```
 
+The game runs silently if `assets/audio/` isn't present locally — the background music file is gitignored (copyrighted).
+
 ## Files
 
 | File | Purpose |
 |---|---|
-| `main.cpp` | Game loop, SDL2 window setup, input handling, turn logic |
+| `main.cpp` | Game loop, SDL2 window/sprite/music setup, input handling, turn logic, level progression |
 | `weapon.h/.cpp` | `Weapon` class — damage, durability, attack |
-| `Entity.h/.cpp` | Base class of `Player` and `Enemy`: health, position/velocity, damage, and the knockback / recall physics (written once) |
-| `Enemy.h/.cpp` | `Enemy`, built from `EnemyStats`; walks to the player and back |
-| `Player.h/.cpp` | Player state, equipped weapon/target, and move-toward-target physics in `Attack()` |
+| `Entity.h/.cpp` | Base class of `Player` and `Enemy`: health, position/velocity, per-entity state, damage, attack movement, and the knockback / recall physics (written once, shared by both) |
+| `Enemy.h/.cpp` | `Enemy`, built from `EnemyStats` |
+| `Player.h/.cpp` | Player-only state: equipped weapon, target enemy |
 | `CombatUtils.h` | Shared `ApplyDamage()` used by both `Enemy` and `Player` |
 | `main-sdl.cpp` | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
@@ -65,21 +68,23 @@ clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Entity.cpp Player.cpp \
 | `assets/compressed/` | Cropped, palette-reduced character sprites (a few KB each) — the `*-2x.png` copies are what the README shows |
 | `assets/*.mp4` | Intro and hit-animation clips (not rendered in-game yet) |
 | `assets/*.jpeg` | Original 2048×2048 character art, kept as source for the compressed sprites |
+| `assets/audio/` | Background music, local-only, gitignored (copyrighted) |
 
 ## Limitations
 
-- No visible rendering of Link or the enemies yet .SDL2 window and the actual combat logic are still separate; position/velocity data exists but isn't drawn to screen yet
+- No win/lose screen text yet, and no sound effects on attacks — intentionally on hold until the mechanics themselves feel solid
+- `tools/autoplay.py` is stale against the level system (it still expects a flat enemy list); hasn't been updated yet
 
 ## Future work
 
-- Draw Link and the 2 enemies as actual sprites in the SDL2 window using the position data that already exists
 - Sound effects for attacks
 - An intro screen before the game starts
 - Package builds for Windows, macOS, and Linux
-- Move enemy/weapon stats into a data table instead of hardcoded constructor values, to scale past two enemy types without writing a new class per enemy
-- Add 3 levels 
+- Win/lose text on screen (SDL_ttf)
+- Update `tools/autoplay.py` for the level system
+- Fixed timestep and real overlap-based collision
 - Long-shot goal: get this running on a jailbroken Wii
 
 ## Status
 
-Active learning project — the commit history intentionally shows real bugs found and fixed along the way rather than a single polished snapshot. Early ones: an infinite loop from unhandled `cin` failure, double-counted durability, missing damage guard on defeated enemies. Recent ones: a second knock corrupting the recall vector, enemies charging during the player's turn, and one shared state starting the enemy's turn early. Each fix is written up with its cause and location in the commit message.
+Active learning project — the commit history intentionally shows real bugs found and fixed along the way rather than a single polished snapshot. Early ones: an infinite loop from unhandled `cin` failure, double-counted durability, missing damage guard on defeated enemies. Since then: the shared-state bug that let the enemy's turn start early, a state that never transitioned away so a physics call fired every frame instead of once, a null pointer dereference from checking the wrong side's target during the enemy's turn, and a couple of off-by-one bugs (an array index, a level-count comparison). Each fix is written up with its cause and location in the commit message.

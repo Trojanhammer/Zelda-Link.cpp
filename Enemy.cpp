@@ -15,6 +15,6 @@ Enemy::Enemy(Enemy::EnemyStats stats) {
     vY = stats.vY;
     basePosX = stats.basePosX;
     basePosY = stats.basePosY;
-
 }
 Player* Enemy::MainPlayer = nullptr;
+

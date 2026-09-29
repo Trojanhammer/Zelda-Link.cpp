@@ -10,7 +10,7 @@ class Enemy : public Entity{
     public:
         static Player* MainPlayer;
 
-    // Strucks is to group related variables together.
+    // Structs is to group related variables together.
     // Struct to hold the stats of the enemy. struct NameOfStructType { variableType variableName; ... };
     // "EnemyStats" is not the name of struct but struct type
         struct EnemyStats{
@@ -25,6 +25,7 @@ class Enemy : public Entity{
             float vX; 
             float vY;
         };
+        
 
     // Why need to declare two times.because those variables lives inside Enemy::EnemyStats not Enemy class.So should declare again
     // But once the construtor is finished, those variables will vanished
