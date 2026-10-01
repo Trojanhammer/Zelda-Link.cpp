@@ -5,6 +5,7 @@
 
 class Entity{
     public :
+        static constexpr float SPEED =360.0f;
         std::string name;
         int health;
         u_int8_t maxHealth;
@@ -37,9 +38,9 @@ class Entity{
 
     public:
         void TakeDamage(u_int8_t damage);
-        void Attack(float posX, float posY);
+        void Attack(float posX, float posY,float deltaTime);
         void KnockBack(float vXOpponent, float vYOpponent);
-        void UpdateKnock();
+        void UpdateKnock(float deltaTime);
         void Return(std::vector<std::pair <float,float>>& Recall);
 
         virtual ~Entity() = default; // destructor

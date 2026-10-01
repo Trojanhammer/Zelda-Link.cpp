@@ -17,19 +17,19 @@
         vX = VxOpponent;
         vY = VyOpponent;
     }
-    void Entity::UpdateKnock(){
-
-        vX *= 0.90;
-        vY *= 0.90;
-        if(std::abs(vX) <0.1 && std::abs(vY) <0.1){
+    void Entity::UpdateKnock(float deltaTime){
+        vX *= std::pow(0.90, deltaTime * 60.0f); // multiply by 60 to make it frame rate independent
+        vY *= std::pow(0.90, deltaTime * 60.0f); 
+        // alternative way to make it frame rate independent is to use std::pow(0.90, deltaTime * 60) instead of 0.90
+        if(std::abs(vX*deltaTime) <0.1 && std::abs(vY*deltaTime) <0.1){
             vX=0;
             vY=0;
             currentState = Recalling;
             return;
         }
         RecallKnocked.push_back({posX, posY});
-        posX += vX;
-        posY += vY;
+        posX += vX * deltaTime;
+        posY += vY * deltaTime;
     }
 
     void Entity::TakeDamage(uint8_t damage){  
@@ -40,8 +40,8 @@
         ApplyDamage(health,damage,isAlive);
     }
 
-    void Entity::Attack(float OppositionX, float OppositionY){
-
+    void Entity::Attack(float OppositionX, float OppositionY,float deltaTime){
+        // set capped at 3000px/s
         // Assume use same speed which is 6 px per frame
         float dX = OppositionX - posX;
         float dY = OppositionY - posY;
@@ -55,11 +55,11 @@
         NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
         ratioX = dX/NormalizedHypotenous;
         ratioY = dY/NormalizedHypotenous;
-        vX = 6 * ratioX;
-        vY = 6 * ratioY;
+        vX = (SPEED * deltaTime) * ratioX;
+        vY = (SPEED * deltaTime) * ratioY;
 
         // Check if already arrived or not to prevent wall bug
-        if (NormalizedHypotenous <= 6){
+        if (NormalizedHypotenous <= SPEED * deltaTime){
             posX = OppositionX;
             posY = OppositionY;
 

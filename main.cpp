@@ -110,9 +110,10 @@ int main(int argc, char* argv[]){
     };
 
     //std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin_0 -> name << " & " << Stalfos_0 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
-    
+    auto lastTime = std::chrono::high_resolution_clock::now();
     while(isRunning){
-
+        float deltaTime = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - lastTime).count();
+        lastTime = std::chrono::high_resolution_clock::now();
         if (currentState == AllEnemyDead){ // This condition will become true when one level completed
             if(currentLevel +1 < MaxLevel){
                 currentLevel++;
@@ -175,11 +176,11 @@ int main(int argc, char* argv[]){
                 MainPlayer -> currentState = Player::Attacking;
             }
             if (MainPlayer -> currentState == Player::Attacking){
-                MainPlayer -> Attack(MainPlayer -> TargetEnemy -> posX, MainPlayer -> TargetEnemy -> posY);
+                MainPlayer -> Attack(MainPlayer -> TargetEnemy -> posX, MainPlayer -> TargetEnemy -> posY,deltaTime); // Attack is a function that will move the player to the enemy position, and once it arrives, it will change the currentState to Knocking. So we need to check if it has arrived or not in the next frame.
                 // then dalam function attack entity, kalau dah sampai ke enmy,currentstate bertukar jadi knocking
             }
             if(MainPlayer -> currentState == Player::Knocking){
-                MainPlayer -> TargetEnemy -> KnockBack(MainPlayer -> vX, MainPlayer-> vY);
+                MainPlayer -> TargetEnemy -> KnockBack((MainPlayer -> vX / deltaTime), MainPlayer-> vY / deltaTime); // divide by deltaTime to get the original speed of player before it is multiplied by deltaTime in the previous frame
                 MainPlayer -> currentState = Player::Recalling;
             }
             else if(MainPlayer -> currentState == Player::Recalling){
@@ -187,7 +188,7 @@ int main(int argc, char* argv[]){
                 MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked;
             }
             if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
-                MainPlayer -> TargetEnemy -> UpdateKnock();
+                MainPlayer -> TargetEnemy -> UpdateKnock(deltaTime);
             }
             else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling){
                 MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> RecallKnocked);
@@ -234,7 +235,7 @@ int main(int argc, char* argv[]){
         }
 
         if (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Attacking){ // Runs mostly on every frame
-            levelEnemies[currentLevel][currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY);
+            levelEnemies[currentLevel][currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY,deltaTime);
         }
         if (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Knocking){
             levelEnemies[currentLevel][currentEnemyIndex] -> MainPlayer -> KnockBack(levelEnemies[currentLevel][currentEnemyIndex] -> vX, levelEnemies[currentLevel][currentEnemyIndex] -> vY);
@@ -245,7 +246,7 @@ int main(int argc, char* argv[]){
             MainPlayer -> currentState = Player::Knocked;
         }
         if(MainPlayer -> currentState == Player::Knocked){
-            MainPlayer -> UpdateKnock();
+            MainPlayer -> UpdateKnock(deltaTime);
         }
         else if(MainPlayer -> currentState == Player::Recalling){
             MainPlayer -> Return(MainPlayer -> RecallKnocked);

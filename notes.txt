@@ -395,3 +395,41 @@ VARIABLE TYPE TO SAVE MEMORY
 2. Unsigned variable - can only be 0 or positive
 
 uint8_t (size : 1 byte , 0-255)     uint16_t (size : 2 byte , 0, 65535)
+
+-----------------------------
+Class or struct is actually a user defined data type same like int,char etc.
+class A{
+
+}
+A ayam; // create var "ayam" from "A" class which is an object
+
+======================================================================
+                 DELTA TIME (dt) C++
+======================================================================
+
+1. APA ITU DELTA TIME (dt)?
+   - Masa dari ATAS sampai BAWAH bagi frame yang LEPAS.
+   - Dikira dalam bentuk SAAT (contoh: 60 FPS -> dt = 0.0166s).
+   - Diukur guna jam CPU, bukan tekaan masa depan komputer.
+
+2. MENGAPA WAJIB GUNA DT (CONTOH: GTA 6 / GAME BERAT)?
+   - Capped 60 FPS -> Kalau PC lag, game jadi Slow-Motion.
+   - Delta Time     -> PC laju tunjuk 4 frame (lancar). 
+                    -> PC lag tunjuk 3 frame (visual melompat).
+                    -> TAPI kedua-duanya sampai di koordinat & masa 
+                       yang SAMA ADIL mengikut jam dunia sebenar!
+
+3. FORMULA PERGERAKAN JALAN (MANUAL C++)
+   ------------------------------------------------------------------
+   // [A] KIRA DT DI ATAS LOOP
+   auto currentTime = std::chrono::high_resolution_clock::now();
+   float dt = std::chrono::duration<float>(currentTime - lastTime).count();
+   lastTime = currentTime;
+
+   // [B] UPDATE KOORDINAT (Wajib darab dt)
+   // Formula: Koordinat += Kelajuan_Per_Saat * dt;
+   LevelStats[0].BokoData.posX += LevelStats[0].BokoData.vX * dt;
+   LevelStats[0].BokoData.posY += LevelStats[0].BokoData.vY * dt;
+
+   // [C] LUKIS/PAPARKAN FRAME DI BAWAH LOOP
+   // LukisMusuh();
