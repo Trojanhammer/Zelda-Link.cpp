@@ -16,7 +16,9 @@ Usage:
     python3 tools/autoplay.py --root SOME/FOLDER       test another copy of the project
 
 Rules checked on every frame (a broken rule prints [VIOLATION]):
-    0. the turn counter never wraps around below 0, and in every enemy turn each living enemy attacks exactly once
+    0. the turn counter never wraps around below 0
+       (the "each living enemy attacks exactly once" half of this rule is currently inactive, see
+       ENEMY_ATTACKING below, since "attacking" moved from a top-level state to a per-enemy one)
     1. nobody is out of range (flew off the screen, or the position became NaN)
     2. during the player's turn (Link has a TargetEnemy), an enemy that is not the target stays on its base,
        and the target only leaves its base when it has been knocked
@@ -25,8 +27,9 @@ Rules checked on every frame (a broken rule prints [VIOLATION]):
 Verdict: FAIL if a rule is broken, if the game loop ends by itself, if a scripted round never gets back
 to the first state, or if the game hangs. Exit code 0 = pass, 1 = fail, 2 = could not build.
 
-The inserted code expects main.cpp to have variables called currentState, currentEnemyIndex, turn, MainPlayer
-and enemies (a vector of Enemy*). If you rename them, update INSTRUMENTATION below.
+The inserted code expects main.cpp to have variables called currentState, currentEnemyIndex, turn, currentLevel,
+MainPlayer and levelEnemies (a vector of vector of unique_ptr<Enemy>, indexed by currentLevel). If you rename
+them, update INSTRUMENTATION below.
 """
 
 import argparse
@@ -44,8 +47,15 @@ LDFLAGS = ["-L/opt/homebrew/lib", "-lSDL2main", "-lSDL2", "-lSDL2_image", "-lSDL
 
 # Names of two states in your enum, used for the rule "every living enemy attacks exactly once per enemy turn".
 # If you rename them, change them here (if they are not in the enum the rule is simply skipped).
+# ENEMY_ATTACKING used to be a top-level GameState; since the per-entity state machine refactor, "attacking"
+# is Enemy::Attacking on each enemy instead, so this rule no longer has a match and is silently skipped.
 ENEMY_TURN_START = "StartEnemyTurn"
 ENEMY_ATTACKING = "EnemyAttacking"
+
+# The state a finished round should come back to (the weapon-choice menu). Used instead of main.cpp's literal
+# initial currentState value, since that is now StartLevel, a one-shot bootstrap the game passes through once
+# and never returns to, not the actual place it waits for input between turns.
+MENU_STATE = "ChooseWeapon"
 
 MARKER = "SDL_RenderPresent(renderer);"          # the per-frame instrumentation goes right before this line
 AFTER_LOOP_MARKER = "SDL_DestroyRenderer(renderer);"   # first line after the game loop: we log the final state here,
@@ -57,15 +67,19 @@ INSTRUMENTATION = r'''
         static long ap_frame = 0;
         ap_frame++;
 
+        bool ap_haveLevel = currentLevel < levelEnemies.size();   // levelEnemies[currentLevel] only exists once StartLevel has run for it
+
         static int ap_lastState = -1;
         if ((int)currentState != ap_lastState) {
             std::ostringstream ap_line;   // build the whole line first, then write it in one go (the key-press thread also logs)
             ap_line << "[state] " << (int)currentState << " frame=" << ap_frame << " turn=" << (int)turn
                     << " link=(" << MainPlayer->posX << "," << MainPlayer->posY << ")";
-            for (size_t i = 0; i < enemies.size(); i++)
-                ap_line << " e" << i << "=(" << enemies[i]->posX << "," << enemies[i]->posY << ")";
+            if (ap_haveLevel)
+                for (size_t i = 0; i < levelEnemies[currentLevel].size(); i++)
+                    ap_line << " e" << i << "=(" << levelEnemies[currentLevel][i]->posX << "," << levelEnemies[currentLevel][i]->posY << ")";
             ap_line << " hp=" << MainPlayer->health << " idx=" << currentEnemyIndex << " alive=";
-            for (Enemy* e : enemies) ap_line << (e->isAlive ? '1' : '0');
+            if (ap_haveLevel)
+                for (const auto& e : levelEnemies[currentLevel]) ap_line << (e->isAlive ? '1' : '0');
             ap_line << "\n";
             std::cerr << ap_line.str();
             ap_lastState = (int)currentState;
@@ -73,6 +87,9 @@ INSTRUMENTATION = r'''
 
         auto ap_home = [](Entity* e) { return e->posX == e->basePosX && e->posY == e->basePosY; };
         auto ap_inRange = [](Entity* e) { return e->posX > -2000 && e->posX < 2000 && e->posY > -2000 && e->posY < 2000; };
+        // "knocked" used to be a bool, then one Recalling state; now Recalling is split into
+        // Recalling_After_Attack and Recalling_After_Knocked, this only cares about the latter.
+        auto ap_knocked = [](Entity* e) { return e->currentState == Entity::Knocked || e->currentState == Entity::Recalling_After_Knocked; };
         static std::set<std::string> ap_seen;   // report each kind of violation once
         auto ap_violation = [&](const char* what) {
             if (ap_seen.insert(what).second)
@@ -83,19 +100,20 @@ INSTRUMENTATION = r'''
             ap_violation("the turn counter wrapped around (it went below 0 - turn-- when turn was already 0?)");
         if (!ap_inRange(MainPlayer.get()))
             ap_violation("Link is out of range (flew off the screen, or his position is NaN)");
-        for (Enemy* e : enemies)
-            if (!ap_inRange(e))
-                ap_violation("an enemy is out of range (flew off the screen, or its position is NaN)");
+        if (ap_haveLevel)
+            for (const auto& e : levelEnemies[currentLevel])
+                if (!ap_inRange(e.get()))
+                    ap_violation("an enemy is out of range (flew off the screen, or its position is NaN)");
 
         Enemy* ap_target = MainPlayer->TargetEnemy;
-        if (ap_target != nullptr) {   // it is the player's turn
-            for (Enemy* e : enemies) {
-                if (e != ap_target && !ap_home(e))
+        if (ap_target != nullptr && ap_haveLevel) {   // it is the player's turn
+            for (const auto& e : levelEnemies[currentLevel]) {
+                if (e.get() != ap_target && !ap_home(e.get()))
                     ap_violation("an enemy that is NOT Link's target left its base during the player's turn");
-                if (e == ap_target && !ap_home(e) && !e->isKnocked)
+                if (e.get() == ap_target && !ap_home(e.get()) && !ap_knocked(e.get()))
                     ap_violation("Link's target left its base without being knocked (is the enemy attacking during the player's turn?)");
             }
-        } else if (!ap_home(MainPlayer.get()) && !MainPlayer->isKnocked) {
+        } else if (ap_target == nullptr && !ap_home(MainPlayer.get()) && !ap_knocked(MainPlayer.get())) {
             ap_violation("Link left his base outside his own turn without being knocked");
         }
     }
@@ -120,8 +138,8 @@ def run(command, what):
     if result.returncode != 0:
         print(f"BUILD FAILED while {what}:\n")
         print(result.stderr)
-        print("(the inserted code expects main.cpp to have variables named currentState, currentEnemyIndex, turn, MainPlayer and enemies -"
-              " if you renamed them, update INSTRUMENTATION in tools/autoplay.py)")
+        print("(the inserted code expects main.cpp to have variables named currentState, currentEnemyIndex, turn, currentLevel,"
+              " MainPlayer and levelEnemies - if you renamed them, update INSTRUMENTATION in tools/autoplay.py)")
         sys.exit(2)
 
 
@@ -134,6 +152,9 @@ def build(root, build_dir, source, start_state, states):
     # the game logic, so the test copy runs without it.
     text = re.sub(r"\|\s*SDL_RENDERER_PRESENTVSYNC", "", text)                       # ACCELERATED | PRESENTVSYNC -> ACCELERATED
     text = text.replace("SDL_RENDERER_PRESENTVSYNC", "SDL_RENDERER_ACCELERATED")    # PRESENTVSYNC alone -> ACCELERATED
+    # SDL_VIDEODRIVER=dummy has no real GPU surface to accelerate; asking for SDL_RENDERER_ACCELERATED under it
+    # hangs on this machine instead of failing cleanly, so the test copy renders in software instead.
+    text = text.replace("SDL_RENDERER_ACCELERATED", "SDL_RENDERER_SOFTWARE")
     text = text.replace(MARKER, INSTRUMENTATION + MARKER)
     text = text.replace(AFTER_LOOP_MARKER,
                         'std::cerr << (std::string("[final] ") + std::to_string((int)currentState) + "\\n");\n    ' + AFTER_LOOP_MARKER)
@@ -170,8 +191,11 @@ def main():
     root = Path(args.root).resolve()
     source = (root / "main.cpp").read_text()
     states = parse_enum(source)
-    initial = re.search(r"GameState\s+currentState\s*=\s*(\w+)\s*;", source)
-    idle_state = initial.group(1) if initial else states[0]   # the menu state a finished round should come back to
+    if MENU_STATE in states:
+        idle_state = MENU_STATE
+    else:
+        initial = re.search(r"GameState\s+currentState\s*=\s*(\w+)\s*;", source)
+        idle_state = initial.group(1) if initial else states[0]   # fallback: main.cpp's literal starting state
 
     rounds = args.rounds
     if not rounds and not args.start:

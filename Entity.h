@@ -28,7 +28,8 @@ class Entity{
             Attacking,
             Knocking,
             Knocked,
-            Recalling
+            Recalling_After_Attack,
+            Recalling_After_Knocked
         };
         // Fact : When we make an object of Entity class or child class for this enumerator,
         // it doesnt allocate each value inside RAM.It just stores 1 byte/4 byte just to hold currentState value

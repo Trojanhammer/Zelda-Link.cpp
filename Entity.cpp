@@ -6,9 +6,11 @@
         posX = Recall.back().first;
         posY = Recall.back().second;
 
-        Recall.pop_back(); // Delete last pair 
+        Recall.pop_back(); // Delete last pair
 
-        if(posX == basePosX && posY == basePosY){
+        if(Recall.empty()){ // every recorded step has been replayed; exact float equality on posX/basePosX
+            posX = basePosX; // is not reliable here, the decayed walk-back rarely lands on it exactly
+            posY = basePosY;
             currentState = Idle;
         }
     }
@@ -21,10 +23,10 @@
         vX *= std::pow(0.90, deltaTime * 60.0f); // multiply by 60 to make it frame rate independent
         vY *= std::pow(0.90, deltaTime * 60.0f); 
         // alternative way to make it frame rate independent is to use std::pow(0.90, deltaTime * 60) instead of 0.90
-        if(std::abs(vX*deltaTime) <0.1 && std::abs(vY*deltaTime) <0.1){
+        if(std::abs(vX) <6.0f && std::abs(vY) <6.0f){ // 6 px/sec, a stable speed threshold (the old 0.1px/frame at 60fps); checking displacement (vX*deltaTime) instead falsely reports "stopped" at full speed when deltaTime is very small
             vX=0;
             vY=0;
-            currentState = Recalling;
+            currentState = Recalling_After_Knocked;
             return;
         }
         RecallKnocked.push_back({posX, posY});

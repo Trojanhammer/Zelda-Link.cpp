@@ -40,10 +40,11 @@ int main(int argc, char* argv[]){
         FirstTurn,
         NextTurn,
         CompleteGame,
-        StartLevel
+        StartLevel,
+        EnemyTurn
     };
 
-    GameState currentState = ChooseWeapon;
+    GameState currentState = StartLevel; // seeds levelEnemies[0] before anything else runs, same path every later level uses
     int currentEnemyIndex = 0;
     unsigned int turn = 0; // can be 0 and (+)
 
@@ -100,11 +101,11 @@ int main(int argc, char* argv[]){
             {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0}
         },
         {   // level_1
-            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0},
-            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0},
+            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 250, .posY = 200, .basePosX = 250, .basePosY = 200, .vX = 0, .vY = 0},
+            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 600, .posY = 240, .basePosX = 600, .basePosY = 240, .vX = 0, .vY = 0},
         },
         {   // level_2
-            {.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 350, .posY = 240, .basePosX = 350, .basePosY = 240, .vX = 0, .vY = 0},
+            {.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 300, .posY = 200, .basePosX = 300, .basePosY = 200, .vX = 0, .vY = 0},
             {.name = "Stalfos", .health = 120, .maxHealth = 120, .attackPower = 35, .posX = 350, .posY = 240, .basePosX = 350, .basePosY = 240, .vX = 0, .vY = 0}
         }
     };
@@ -181,16 +182,16 @@ int main(int argc, char* argv[]){
             }
             if(MainPlayer -> currentState == Player::Knocking){
                 MainPlayer -> TargetEnemy -> KnockBack((MainPlayer -> vX / deltaTime), MainPlayer-> vY / deltaTime); // divide by deltaTime to get the original speed of player before it is multiplied by deltaTime in the previous frame
-                MainPlayer -> currentState = Player::Recalling;
+                MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked; // one-shot, same frame as KnockBack; was in the Recalling branch below, which re-ran every frame and kept stomping the target back to Knocked even after it finished its own recall
+                MainPlayer -> currentState = Player::Recalling_After_Attack; 
             }
-            else if(MainPlayer -> currentState == Player::Recalling){
+            else if(MainPlayer -> currentState == Player::Recalling_After_Attack){
                 MainPlayer-> Return(MainPlayer -> RecallAttack);
-                MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked;
             }
             if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
                 MainPlayer -> TargetEnemy -> UpdateKnock(deltaTime);
             }
-            else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling){
+            else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling_After_Knocked){
                 MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> RecallKnocked);
             }
             if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
@@ -216,17 +217,22 @@ int main(int argc, char* argv[]){
                 currentState = FirstTurn;
             }
         }
-        if (currentState == FirstTurn){
+        if (currentState == FirstTurn){ // Runs not on every frame
             while(!(levelEnemies[currentLevel][currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
                 currentEnemyIndex=(currentEnemyIndex+1) % levelEnemies[currentLevel].size();
             }
             levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::DealDamage;
+            currentState = EnemyTurn;
+            
         }
-        if (currentState == NextTurn){
-            currentEnemyIndex=(currentEnemyIndex+1) % levelEnemies[currentLevel].size(); // revert back the turns
-            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::DealDamage;
+        if (currentState == NextTurn){ // Runs not on every frame
             if(turn == 0){
                 currentState = ChooseWeapon;
+            }
+            else{
+                currentEnemyIndex=(currentEnemyIndex+1) % levelEnemies[currentLevel].size(); // revert back the turns
+                levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::DealDamage;
+                currentState = EnemyTurn;
             }
         }
         if (levelEnemies[currentLevel][currentEnemyIndex]-> currentState == Enemy::DealDamage){ // Runs not on every frame
@@ -238,20 +244,20 @@ int main(int argc, char* argv[]){
             levelEnemies[currentLevel][currentEnemyIndex] -> Attack(MainPlayer -> posX , MainPlayer -> posY,deltaTime);
         }
         if (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Knocking){
-            levelEnemies[currentLevel][currentEnemyIndex] -> MainPlayer -> KnockBack(levelEnemies[currentLevel][currentEnemyIndex] -> vX, levelEnemies[currentLevel][currentEnemyIndex] -> vY);
-            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Recalling;
+            levelEnemies[currentLevel][currentEnemyIndex] -> MainPlayer -> KnockBack(levelEnemies[currentLevel][currentEnemyIndex] -> vX / deltaTime, levelEnemies[currentLevel][currentEnemyIndex] -> vY / deltaTime); // same recovery as the player's side: vX/vY are this frame's displacement, divide by deltaTime to get the real speed
+            MainPlayer -> currentState = Player::Knocked; // one-shot, same frame as KnockBack; was in the Recalling branch below
+            levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Recalling_After_Attack;
         }
-        else if(levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Recalling){
+        else if(levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Recalling_After_Attack){ // prevent this condition to run when player hits enemy
             levelEnemies[currentLevel][currentEnemyIndex] -> Return(levelEnemies[currentLevel][currentEnemyIndex] -> RecallAttack);
-            MainPlayer -> currentState = Player::Knocked;
         }
         if(MainPlayer -> currentState == Player::Knocked){
             MainPlayer -> UpdateKnock(deltaTime);
         }
-        else if(MainPlayer -> currentState == Player::Recalling){
+        else if(MainPlayer -> currentState == Player::Recalling_After_Knocked){
             MainPlayer -> Return(MainPlayer -> RecallKnocked);
         }
-        if ((MainPlayer -> currentState == Player::Idle) && (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Idle)){
+        if ((currentState ==EnemyTurn) && (MainPlayer -> currentState == Player::Idle) && (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Idle)){
             currentState = NextTurn;      
             turn--;
         }
