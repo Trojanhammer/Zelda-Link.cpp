@@ -23,7 +23,7 @@ Example: the turn flow started as `currentState` plus many bools (`isKnocked`, `
 
 The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability. There are 3 levels; the same two enemy types return each level with higher stats, built from one data table instead of separate hand-written variables per level.
 
-**Current focus:** levels and code cleanup — the mechanics have to satisfy me before animation, attack sounds or other polish get added. Next physics step once that's done: a fixed timestep (movement by speed × time instead of a fixed amount per frame) and real overlap-based collision.
+**Current focus:** mechanics have to satisfy me before animation, attack sounds or other polish get added. Movement is now frame-rate independent (speed × time instead of a fixed amount per frame); the recall replay hasn't caught up yet, see Limitations. Next physics step: real overlap-based collision.
 
 ## Concepts practiced
 
@@ -36,7 +36,8 @@ The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks
 - **Knockback and recall** — velocity with friction, and replaying stored positions in reverse to walk back to base
 - **State machines** — one `currentState` per entity instead of scattered bools; each side (player, enemy) checks and transitions its own state independently
 - **Data-driven design** — enemy stats per level live in one `LevelStats` table instead of a hand-written variable per level/enemy pair
-- **Automated testing** — a script that plays the game headless and checks rules every frame
+- **Frame-rate independence** — `Attack()`/`UpdateKnock()` moved from a fixed amount per frame to speed × `deltaTime`; learned the hard way that a stop-threshold has to compare a stable speed, not a displacement that shrinks with `deltaTime`, and that a one-shot state transition has to actually leave its own state, or it silently re-fires every single frame instead of once
+- **Automated testing** — a script that plays the game headless and checks rules every frame; running it unthrottled (tens of thousands of frames a second) is what actually surfaced the bugs above, they were far too fast to catch by eye
 - **SDL2 fundamentals** — window/renderer setup, sprite drawing, background music, the event loop and why blocking it (e.g. `SDL_Delay`) breaks rendering on macOS
 
 ## Build
@@ -73,18 +74,27 @@ The game runs silently if `assets/audio/` isn't present locally — the backgrou
 ## Limitations
 
 - No win/lose screen text yet, and no sound effects on attacks — intentionally on hold until the mechanics themselves feel solid
-- `tools/autoplay.py` is stale against the level system (it still expects a flat enemy list); hasn't been updated yet
+- The recall replay (`Return()`) still steps through recorded positions one per frame, so it isn't frame-rate independent yet like the rest of the physics — see Future work
 
 ## Future work
 
+- Make the recall replay frame-rate independent: store a timestamp alongside each recorded position instead of just (x, y), and pace the walk-back by elapsed real time instead of by one step per frame
+- Real overlap-based collision
 - Sound effects for attacks
 - An intro screen before the game starts
 - Package builds for Windows, macOS, and Linux
 - Win/lose text on screen (SDL_ttf)
-- Update `tools/autoplay.py` for the level system
-- Fixed timestep and real overlap-based collision
 - Long-shot goal: get this running on a jailbroken Wii
 
 ## Status
 
-Active learning project — the commit history intentionally shows real bugs found and fixed along the way rather than a single polished snapshot. Early ones: an infinite loop from unhandled `cin` failure, double-counted durability, missing damage guard on defeated enemies. Since then: the shared-state bug that let the enemy's turn start early, a state that never transitioned away so a physics call fired every frame instead of once, a null pointer dereference from checking the wrong side's target during the enemy's turn, and a couple of off-by-one bugs (an array index, a level-count comparison). Each fix is written up with its cause and location in the commit message.
+Active learning project — the commit history intentionally shows real bugs found and fixed along the way rather than a single polished snapshot. A few of the more notable ones:
+
+1. An infinite loop from an unhandled `cin` failure (early version, before SDL2)
+2. A shared state both the player and the enemy set, letting the enemy's turn start early
+3. A null pointer dereference from checking the wrong side's target during the enemy's turn
+4. A per-entity state refactor that quietly broke an outer state's one-shot assumption, letting an enemy's turn re-trigger every frame instead of once
+5. A recall state that meant two different things depending on context, and crashed when both meanings collided in the same frame
+6. `Return()` deciding "arrived home" by exact float equality, which a decayed walk-back almost never lands on exactly
+
+Each fix is written up with its cause and location in the commit message.
