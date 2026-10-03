@@ -52,7 +52,7 @@ clang++ -std=c++17 $(find src -name '*.cpp') -Isrc -Isrc/entities -Isrc/sdl \
 
 The game runs silently if `assets/audio/` isn't present locally — the background music file is gitignored (copyrighted).
 
-The intro and the hit cutscenes are the `assets/*.mp4` clips, turned into numbered pictures in `assets/frames/` by `tools/extract_frames.sh` (needs `ffmpeg`; SDL2 cannot play video). Without that folder the game still runs and just skips them.
+The intro and the hit cutscenes are the `assets/*.mp4` clips, turned into numbered pictures plus their sound (`audio.ogg`) in `assets/frames/` by `tools/extract_frames.sh` (needs `ffmpeg`; SDL2 cannot play video). The background music pauses while a clip's sound plays. Without that folder the game still runs and just skips them.
 
 ## Files
 
@@ -67,19 +67,19 @@ All game code is in `src/`: `main.cpp` and the small shared headers sit at the t
 | `Player.h/.cpp` | Player-only state: equipped weapon, target enemy |
 | `CombatUtils.h` | Shared `ApplyDamage()` used by both `Enemy` and `Player` |
 | `ui.h/.cpp` | Text, health labels, the prompt bar and the game-over overlay, drawn with a small built-in 5×7 pixel font (no SDL_ttf, no font file) |
-| `clip.h/.cpp` | `Clip`: plays an animation stored as numbered pictures, picking the picture by elapsed seconds so it takes the same time at any frame rate |
+| `clip.h/.cpp` | `Clip`: plays an animation stored as numbered pictures, picking the picture by elapsed seconds so it takes the same time at any frame rate, and plays the clip's sound with it (the music pauses meanwhile) |
 | `screens.h/.cpp` | `DrawScreens()`: draws a whole frame from one function: sprites, health labels, the prompts for each game state, the intro, the cutscenes, game over / you win |
 | `GameState.h`, `levels.h` | The big game phases (`enum GameState`) and the `LevelStats` table with each level's enemy stats, both moved out of `main.cpp` |
 | `main-sdl.cpp` (repo root) | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
 | `sdl-notes.txt` | Notes specifically on SDL2 fundamentals and V-Sync |
 | `tools/autoplay.py`, `tools/autoplay_driver.cpp` | Plays the real game headless by injecting key presses, prints every state change and checks rules. This is how the bugs get found (written with AI) |
-| `tools/extract_frames.sh` | Turns `assets/*.mp4` into numbered JPEGs in `assets/frames/` for the intro and cutscenes |
+| `tools/extract_frames.sh` | Turns `assets/*.mp4` into numbered JPEGs and an `audio.ogg` in `assets/frames/` for the intro and cutscenes |
 | `check-memory.sh` | Samples the running game's RAM once per second into `memory-log.csv` (written with AI) |
 | `TODO.md` | Worklist |
 | `assets/compressed/` | Cropped, palette-reduced character sprites (a few KB each) — the `*-2x.png` copies are what the README shows |
 | `assets/*.mp4` | Intro and hit-animation clips (the source for `assets/frames/`) |
-| `assets/frames/` | The clips as numbered JPEGs, 12 per second (about 5 MB) |
+| `assets/frames/` | The clips as numbered JPEGs, 12 per second, plus each clip's sound as `audio.ogg` (about 6 MB in all) |
 | `assets/*.jpeg` | Original 2048×2048 character art, kept as source for the compressed sprites |
 | `assets/audio/` | Background music, local-only, gitignored (copyrighted) |
 

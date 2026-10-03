@@ -23,10 +23,22 @@ namespace {
 Clip::Clip(SDL_Renderer* renderer, const std::string& folder, float framesPerSecond)
     : renderer(renderer), folder(folder), framesPerSecond(framesPerSecond) {
     while (FileExists(FramePath(folder, frameCount))) frameCount++;   // count the pictures: 001.jpg, 002.jpg, ... until one is missing
+
+    int frequency = 0, channels = 0;
+    Uint16 format = 0;
+    std::string soundPath = folder + "/audio.ogg";
+    if (Mix_QuerySpec(&frequency, &format, &channels) != 0 && FileExists(soundPath)) {   // the mixer must be open (main() opens it before the clips)
+        sound = Mix_LoadWAV(soundPath.c_str());   // despite the name this loads .ogg too
+    }
 }
 
 Clip::~Clip() {
     Free();
+    int frequency = 0, channels = 0;
+    Uint16 format = 0;
+    if (sound != nullptr && Mix_QuerySpec(&frequency, &format, &channels) != 0) {   // only while the mixer is still open
+        Mix_FreeChunk(sound);
+    }
 }
 
 void Clip::Free() {
@@ -43,10 +55,32 @@ void Clip::Load(int index) {
     loadedIndex = index;
 }
 
+void Clip::StartSound() {
+    if (sound == nullptr) return;
+    pausedMusic = Mix_PlayingMusic() && !Mix_PausedMusic();
+    if (pausedMusic) Mix_PauseMusic();
+    soundChannel = Mix_PlayChannel(-1, sound, 0);   // -1 = any free channel, 0 = play once
+}
+
+void Clip::StopSound() {
+    if (soundChannel >= 0 && Mix_Playing(soundChannel) && Mix_GetChunk(soundChannel) == sound) {
+        Mix_HaltChannel(soundChannel);   // the clip was skipped, or its last picture is up and the sound is a few ms longer
+    }
+    soundChannel = -1;
+    if (pausedMusic) {
+        Mix_ResumeMusic();
+        pausedMusic = false;
+    }
+}
+
 void Clip::Start() {
+    StopSound();   // in case it was still playing
     started = true;
     elapsed = 0.0f;
-    if (frameCount > 0) Load(0);
+    if (frameCount > 0) {
+        Load(0);
+        StartSound();
+    }
 }
 
 void Clip::Update(float deltaTime) {
@@ -54,12 +88,14 @@ void Clip::Update(float deltaTime) {
     elapsed += deltaTime;
     int index = std::min(frameCount - 1, (int)(elapsed * framesPerSecond));
     if (index != loadedIndex) Load(index);
+    if (Finished()) StopSound();   // cheap and harmless when it is already stopped
 }
 
 void Clip::Skip() {
     if (!started || frameCount == 0) return;
     elapsed = frameCount / framesPerSecond;
     if (loadedIndex != frameCount - 1) Load(frameCount - 1);
+    StopSound();
 }
 
 bool Clip::Finished() const {

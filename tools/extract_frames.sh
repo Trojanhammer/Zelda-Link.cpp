@@ -5,7 +5,8 @@
 # it picks the picture that matches how many seconds have passed (see clip.cpp).
 # Needs ffmpeg. Run it once from the project folder (or again if you re-render a clip):
 #     tools/extract_frames.sh
-# The pictures are 12 per second, 640 pixels wide, JPEG quality 5 (about 15 KB each).
+# The pictures are 12 per second, 640 pixels wide, JPEG quality 5 (about 15 KB each). The sound of each clip goes next to
+# them as audio.ogg (about 75 KB); clip.cpp plays it together with the pictures.
 
 set -e
 cd "$(dirname "$0")/.."
@@ -18,6 +19,7 @@ for video in assets/*.mp4; do
     rm -rf "$out"
     mkdir -p "$out"
     "$FFMPEG" -v error -y -i "$video" -vf "fps=12,scale=640:-1" -q:v 5 "$out/%03d.jpg"
-    echo "$name: $(ls "$out" | wc -l | tr -d ' ') frames"
+    "$FFMPEG" -v error -y -i "$video" -vn -ac 2 -ar 44100 -c:a libvorbis -q:a 3 "$out/audio.ogg" || true   # a clip without sound just has no audio.ogg
+    echo "$name: $(ls "$out"/*.jpg | wc -l | tr -d ' ') frames, sound: $([ -f "$out/audio.ogg" ] && echo yes || echo no)"
 done
 du -sh assets/frames

@@ -1,5 +1,6 @@
 #pragma once
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <string>
 
 // A short animation that is stored as numbered pictures (001.jpg, 002.jpg, ...), made from the .mp4 files by
@@ -8,6 +9,8 @@
 //     12 pictures per second, 0.50 seconds in  ->  picture number 0.50 * 12 = 6 (the 7th one)
 // Because it goes by seconds (deltaTime) and not by frames, a clip takes the same time at 30 fps and at 144 fps.
 // If the folder has no pictures the clip is simply empty: Finished() is true at once and the game carries on.
+// If the folder also has audio.ogg (the sound of the .mp4), it plays together with the pictures. The background music is
+// paused while it plays and carries on from the same spot afterwards, so the two never talk over each other.
 class Clip {
 public:
     Clip(SDL_Renderer* renderer, const std::string& folder, float framesPerSecond);
@@ -29,6 +32,8 @@ public:
 
 private:
     void Load(int index);          // index 0 = 001.jpg
+    void StartSound();             // pause the music (if it is playing) and play audio.ogg
+    void StopSound();              // stop audio.ogg and let the music carry on; does nothing if it is not playing
 
     SDL_Renderer* renderer;
     std::string folder;
@@ -38,4 +43,7 @@ private:
     float elapsed = 0.0f;          // seconds since Start()
     bool started = false;
     SDL_Texture* texture = nullptr;   // only the current picture is kept in memory
+    Mix_Chunk* sound = nullptr;       // audio.ogg, nullptr when there is none (or the mixer is not open)
+    int soundChannel = -1;            // the mixer channel it plays on while it plays
+    bool pausedMusic = false;         // true while we are the reason the music is paused
 };

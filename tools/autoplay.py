@@ -385,6 +385,9 @@ def main():
             i = j
     if timed_out:
         problems.append("the game hung (had to be killed)")
+    elif process.returncode != 0:
+        # a crash at the very end (for example while cleaning up after the game loop) would not show in the timeline above
+        problems.append(f"the game exited with code {process.returncode}" + (f" (signal {-process.returncode}: it crashed)" if process.returncode < 0 else ""))
     if violations:
         problems.append(f"{len(violations)} rule(s) broken (see [VIOLATION] lines above)")
     if ended_by_itself and not game_over:
