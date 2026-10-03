@@ -1,16 +1,12 @@
 #include "Entity.h"
 #include "CombatUtils.h"
 
-    void Entity::Return(std::vector<RecallPoint>& Recall, float deltaTime){
+    void Entity::Return(std::vector<RecallPoint>& Recall, float deltaTime){ // TOTK Recall Mechanic
         if(RecallClock <0){
             RecallClock = Recall.back().time;
         }
         RecallClock -= deltaTime;
         int i;
-
-        // (98, 48, 2.5) -> (99,49,2.67) -> (100,50, 3) ->(x,y, 2.98) -> (x,y,2.5) -> (x,y,0)
-        //(99,49, 2.67) -> (x,y,2.6), (x,y,2.59) rati0 =0.8
-        
         for (i = Recall.size() -1 ; i>0; i--){
             if (Recall[i].time == RecallClock){
                 posX = Recall[i].posX;

@@ -1,6 +1,10 @@
 #include "weapon.h"
 #include "Player.h"
-#include "Enemy.h"
+#include "ui.h"   // text, health bars, prompt bar (ui.cpp)
+#include "clip.h" // the intro and the hit cutscenes (clip.cpp)
+#include "GameState.h"
+#include "levels.h"
+#include "screens.h"
 
 #include <memory> // Include the memory header for smart pointers
 #include <iostream> // Include the iostream header for input/output operations
@@ -11,37 +15,9 @@
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 
-void DrawSprite(SDL_Renderer* renderer,SDL_Texture* texture, float centerX, float centerY ,float scale){
-    if (texture == nullptr) return; // check image is exist, use return so dont crash the game
-    int w = 0;
-    int h = 0;
-
-    // Ask texture(image) about its size
-    SDL_QueryTexture(texture,nullptr,nullptr, &w, &h);
-    SDL_Rect dst; // destination
-    dst.w = (int)(w * scale);
-    dst.h = (int)(h * scale);
-    dst.x = (int)(centerX - dst.w /2); // Change value of X .Ke kiri sikit
-    dst.y = (int)(centerY - dst.h /2); // Ke atas sikit
-
-    SDL_RenderCopy(renderer, texture,nullptr, &dst);
-}
-
-// main fx is the entry point of the program
 int main(int argc, char* argv[]){
     std::ios_base::sync_with_stdio(false); //Optimize text printing(cout) by disconnecting to old C safety checks
-    enum GameState {// Enumuration is for readability for users like chooseweapon is read as "0" to computer and "1" for chooseenemy and goes on
-        ChooseWeapon, // GameState is datatype
-        ChooseEnemy,
-        StartEnemyTurn,
-        AllEnemyDead,
-        PlayerDie,
-        FirstTurn,
-        NextTurn,
-        CompleteGame,
-        StartLevel,
-        EnemyTurn
-    };
+    
 
     GameState currentState = StartLevel; // seeds levelEnemies[0] before anything else runs, same path every later level uses
     int currentEnemyIndex = 0;
@@ -80,6 +56,24 @@ int main(int argc, char* argv[]){
     bool isRunning = true;
     SDL_Event event;
 
+    // Intro + hit cutscenes. The .mp4 files in assets/ are turned into numbered pictures,
+    // because SDL2 cannot play video. If assets/frames/ is missing the clips are empty and the game just skips them.
+    bool showIntro = true;        // the intro plays once, before level 1
+    bool playAttackClips = true;  // a cutscene every time a hit lands
+    Clip introClip(renderer, "assets/frames/intro", 12.0f);
+    Clip linkHitsBokobolin(renderer, "assets/frames/link-attacks-bokobolin", 12.0f);
+    Clip linkHitsStalfos(renderer, "assets/frames/link-attacks-stalfos", 12.0f);
+    Clip bokobolinHitsLink(renderer, "assets/frames/bokobolin-attacks-link", 12.0f);
+    Clip stalfosHitsLink(renderer, "assets/frames/stalfos-attacks-link", 12.0f);
+    Clip* playingClip = nullptr;  // the hit cutscene on screen right now (nullptr = none). The game stands still while it plays.
+    std::string clipCaption;
+
+    const float typingSpeed = 40.0f; // letters per second for the story text
+    float storyTime = 0;             // seconds since the intro video finished: 1.5 s -> 1.5 * 40 = 60 letters typed so far
+    const std::vector<std::string> storyLines = UI::WrapText(
+        "YOUR NAME IS LINK. YOU CARRY THE MASTER SWORD AND THE OCARINA SWORD, BUT EACH ONE CAN ONLY STRIKE TWICE. "
+        "DEFEAT THE BOKOBOLIN AND THE STALFOS BEFORE YOUR SWORDS BREAK.", 720, 2);
+
     // Game Start
     auto MainPlayer= std::make_unique<Player>();
     Enemy::MainPlayer = MainPlayer.get(); // set it once after we made player object so every enemy now shares same pointer instead of assign one by one
@@ -88,28 +82,9 @@ int main(int argc, char* argv[]){
     auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
     auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
     std::vector<std::vector<std::unique_ptr<Enemy>>> levelEnemies; // store  unique_ptr in 2d vector (dynamic array)
-
-    struct BlueprintLevel {
-            Enemy::EnemyStats BokoData;
-            Enemy::EnemyStats StalfosData;
-        };
-
-    const std::vector<BlueprintLevel> LevelStats {
-        {   // level_0
-            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 150, .posY = 100, .basePosX = 150, .basePosY = 100, .vX = 0, .vY = 0},
-            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 550, .posY = 160, .basePosX = 550, .basePosY = 160, .vX = 0, .vY = 0}
-        },
-        {   // level_1
-            {.name = "Bokobolin", .health = 80, .maxHealth = 80, .attackPower = 10, .posX = 250, .posY = 200, .basePosX = 250, .basePosY = 200, .vX = 0, .vY = 0},
-            {.name = "Stalfos", .health = 80, .maxHealth = 80, .attackPower = 20, .posX = 600, .posY = 240, .basePosX = 600, .basePosY = 240, .vX = 0, .vY = 0},
-        },
-        {   // level_2
-            {.name = "Bokobolin", .health = 110, .maxHealth = 110, .attackPower = 25, .posX = 300, .posY = 200, .basePosX = 300, .basePosY = 200, .vX = 0, .vY = 0},
-            {.name = "Stalfos", .health = 120, .maxHealth = 120, .attackPower = 35, .posX = 350, .posY = 240, .basePosX = 350, .basePosY = 240, .vX = 0, .vY = 0}
-        }
-    };
-
-    //std::cout << "\nYour name is Link, you have " << MasterSword -> name << " and " << OcarinaSword -> name << " and you are going to fight against " << Bokobolin_0 -> name << " & " << Stalfos_0 -> name << " , you have 4 chances to attack them (each weapon can be used 2 times), if you run out of durability, you will lose the game, if you kill both enemies, you will win the game" << std::endl;
+    
+    ScreenView view{renderer, link_texture, bokobolin_texture, stalfos_texture, spriteScale, currentState, currentLevel, MaxLevel, currentEnemyIndex, *MainPlayer, levelEnemies, *MasterSword, *OcarinaSword, playingClip, clipCaption, introClip, storyTime, typingSpeed, storyLines};
+    
     auto lastTime = std::chrono::high_resolution_clock::now();
     while(isRunning){
         float deltaTime = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - lastTime).count();
@@ -130,6 +105,11 @@ int main(int argc, char* argv[]){
 
             levelEnemies.push_back(std::move(e)); // transfer the unique pointer task to levelEnemies;
             currentState = ChooseWeapon;
+            if(showIntro){ // show intro only once
+                showIntro = false;
+                introClip.Start();
+                currentState = Intro;
+            }
         }
 
 //-----------------------------------------------------------------------------------------------------------------
@@ -139,7 +119,16 @@ int main(int argc, char* argv[]){
                 isRunning = false;
             }
             else if(event.type == SDL_KEYDOWN){ // when anything on keyboard is click
-                if(currentState == ChooseWeapon){
+                if(playingClip != nullptr){
+                    playingClip -> Skip(); // skip the cutscene if any key is pressed
+                }
+                else if(currentState == Intro){
+                    bool introDone = introClip.Finished() && storyTime * typingSpeed >= UI::CountLetters(storyLines);
+                    if(introDone && (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_SPACE)){
+                        currentState = ChooseWeapon;
+                    }
+                }
+                else if(currentState == ChooseWeapon){
                     if(event.key.keysym.sym == SDLK_1 && MasterSword -> durability > 0){
                         MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
                         currentState = ChooseEnemy;
@@ -164,57 +153,76 @@ int main(int argc, char* argv[]){
                 }
         }
 
-//-----------------------------------------------------------------------------------------------------------------
-
-        // Checks if player has choose .If not, then skip to render.
-        if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
-            // Part 2 : Physics 
-
-            if(MainPlayer -> currentState == Player:: DealDamage){ // seperate from attack physics because this one only run once since turn based game
-                MainPlayer -> EquippedWeapon -> Attack(); // to update durability of weapon
-                MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
-                MainPlayer -> currentState = Player::Attacking;
-            }
-            if (MainPlayer -> currentState == Player::Attacking){
-                MainPlayer -> Attack(MainPlayer -> TargetEnemy -> posX, MainPlayer -> TargetEnemy -> posY,deltaTime); // Attack is a function that will move the player to the enemy position, and once it arrives, it will change the currentState to Knocking. So we need to check if it has arrived or not in the next frame.
-                // then dalam function attack entity, kalau dah sampai ke enmy,currentstate bertukar jadi knocking
-            }
-            if(MainPlayer -> currentState == Player::Knocking){
-                MainPlayer -> TargetEnemy -> KnockBack((MainPlayer -> vX / deltaTime), MainPlayer-> vY / deltaTime); // divide by deltaTime to get the original speed of player before it is multiplied by deltaTime in the previous frame
-                MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked; // one-shot, same frame as KnockBack; was in the Recalling branch below, which re-ran every frame and kept stomping the target back to Knocked even after it finished its own recall
-                MainPlayer -> currentState = Player::Recalling_After_Attack; 
-            }
-            else if(MainPlayer -> currentState == Player::Recalling_After_Attack){
-                MainPlayer-> Return(MainPlayer -> Recall_After_Attack,deltaTime);
-            }
-            if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
-                MainPlayer -> TargetEnemy -> UpdateKnock(deltaTime);
-            }
-            else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling_After_Knocked){
-                MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> Recall_After_Knocked,deltaTime);
-            }
-            if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
-                MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
-                currentState = StartEnemyTurn;      
+        if(currentState == Intro){
+            introClip.Update(deltaTime);
+            if(introClip.Finished()){
+                storyTime += deltaTime;
             }
         }
-    // Use "if" for event that happen not on every frame or situations.    
-    // Enemy Turn
-        else if (currentState == StartEnemyTurn){
-            bool anyEnemyLive=false; // Check if any of enemy still alive
-            for (const auto& e : levelEnemies[currentLevel]){ // make a reference(store address) for that unique pointer
-                if(e->isAlive){
-                    anyEnemyLive=true;
-                    turn++; // How many turns enemy have depends on how many is alive right now
+        else if(playingClip != nullptr){
+            playingClip -> Update(deltaTime);
+            if(playingClip -> Finished()){
+                playingClip = nullptr;
+            }
+        }
+
+//-----------------------------------------------------------------------------------------------------------------
+        if(playingClip == nullptr){ 
+            // Checks if player has choose .If not, then skip to render.
+            if ((MainPlayer -> TargetEnemy != nullptr) && (MainPlayer -> EquippedWeapon != nullptr)){
+                // Part 2 : Physics 
+
+                if(MainPlayer -> currentState == Player:: DealDamage){ // seperate from attack physics because this one only run once since turn based game
+                    MainPlayer -> EquippedWeapon -> Attack(); // to update durability of weapon
+                    MainPlayer -> currentState = Player::Attacking;
+                }
+                if (MainPlayer -> currentState == Player::Attacking){
+                    MainPlayer -> Attack(MainPlayer -> TargetEnemy -> posX, MainPlayer -> TargetEnemy -> posY,deltaTime); // Attack is a function that will move the player to the enemy position, and once it arrives, it will change the currentState to Knocking. So we need to check if it has arrived or not in the next frame.
+                    // then dalam function attack entity, kalau dah sampai ke enmy,currentstate bertukar jadi knocking
+                }
+                if(MainPlayer -> currentState == Player::Knocking){
+                    MainPlayer -> TargetEnemy -> TakeDamage(MainPlayer -> EquippedWeapon -> damage);
+                    MainPlayer -> TargetEnemy -> KnockBack((MainPlayer -> vX / deltaTime), MainPlayer-> vY / deltaTime); // divide by deltaTime to get the original speed of player before it is multiplied by deltaTime in the previous frame
+                    MainPlayer -> TargetEnemy -> currentState = Enemy::Knocked; // one-shot, same frame as KnockBack; was in the Recalling branch below, which re-ran every frame and kept stomping the target back to Knocked even after it finished its own recall
+                    MainPlayer -> currentState = Player::Recalling_After_Attack; 
+                    // hit cutscene
+                    if(playAttackClips){
+                        playingClip = (MainPlayer -> TargetEnemy == levelEnemies[currentLevel][0].get()) ? &linkHitsBokobolin : &linkHitsStalfos;
+                        clipCaption = "LINK STRIKES " + MainPlayer -> TargetEnemy -> name + "!" ;
+                        playingClip -> Start();
+                    }
+                }
+                else if(MainPlayer -> currentState == Player::Recalling_After_Attack){
+                    MainPlayer-> Return(MainPlayer -> Recall_After_Attack,deltaTime);
+                }
+                if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
+                    MainPlayer -> TargetEnemy -> UpdateKnock(deltaTime);
+                }
+                else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling_After_Knocked){
+                    MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> Recall_After_Knocked,deltaTime);
+                }
+                if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
+                    MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
+                    currentState = StartEnemyTurn;      
                 }
             }
+        // Use "if" for event that happen not on every frame or situations.    
+        // Enemy Turn
+            else if (currentState == StartEnemyTurn){
+                bool anyEnemyLive=false; // Check if any of enemy still alive
+                for (const auto& e : levelEnemies[currentLevel]){ // make a reference(store address) for that unique pointer
+                    if(e->isAlive){
+                        anyEnemyLive=true;
+                        turn++; // How many turns enemy have depends on how many is alive right now
+                    }
+                }
 
-            if (!anyEnemyLive){
-                currentState = AllEnemyDead;
-            }
-            else{
-                currentState = FirstTurn;
-            }
+                if (!anyEnemyLive){
+                    currentState = AllEnemyDead;
+                }
+                else{
+                    currentState = FirstTurn;
+                }
         }
         if (currentState == FirstTurn){ // Runs not on every frame
             while(!(levelEnemies[currentLevel][currentEnemyIndex] -> isAlive)){ // Determine which enemy first turn to attack.Search for enemy that still alive
@@ -246,6 +254,11 @@ int main(int argc, char* argv[]){
             levelEnemies[currentLevel][currentEnemyIndex] -> MainPlayer -> KnockBack(levelEnemies[currentLevel][currentEnemyIndex] -> vX / deltaTime, levelEnemies[currentLevel][currentEnemyIndex] -> vY / deltaTime); // same recovery as the player's side: vX/vY are this frame's displacement, divide by deltaTime to get the real speed
             MainPlayer -> currentState = Player::Knocked; // one-shot, same frame as KnockBack; was in the Recalling branch below
             levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Recalling_After_Attack;
+            if(playAttackClips){
+                playingClip = (currentEnemyIndex == 0) ? &bokobolinHitsLink : &stalfosHitsLink;
+                clipCaption = levelEnemies[currentLevel][currentEnemyIndex] -> name + " STRIKES LINK!";
+                playingClip -> Start();
+            }
         }
         else if(levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Recalling_After_Attack){ // prevent this condition to run when player hits enemy
             levelEnemies[currentLevel][currentEnemyIndex] -> Return(levelEnemies[currentLevel][currentEnemyIndex] -> Recall_After_Attack,deltaTime);
@@ -260,14 +273,13 @@ int main(int argc, char* argv[]){
             currentState = NextTurn;      
             turn--;
         }
-
+        if(currentState == ChooseWeapon && (MasterSword -> durability ==0) && (OcarinaSword -> durability ==0)){
+            currentState = PlayerDie;
+        }
         if (!(MainPlayer -> isAlive)){
             currentState = PlayerDie;
-            //break; // Break the loop when player died
         }
-
-
-    
+    }
         
 //-----------------------------------------------------------------------------------------------------------------
         
@@ -275,26 +287,7 @@ int main(int argc, char* argv[]){
         SDL_SetRenderDrawColor(renderer, 255,255,255,255);
         SDL_RenderClear(renderer);
         
-        // SDL2 lukis X coord and Y lain.tapi physics in game tetap attack ke posX,posY asal.
-        DrawSprite(renderer,link_texture,MainPlayer -> posX, MainPlayer -> posY,spriteScale[currentLevel]);
-        DrawSprite(renderer,bokobolin_texture,levelEnemies[currentLevel][0] -> posX, levelEnemies[currentLevel][0] -> posY,spriteScale[currentLevel]);
-        DrawSprite(renderer,stalfos_texture,levelEnemies[currentLevel][1] -> posX, levelEnemies[currentLevel][1] -> posY,spriteScale[currentLevel]);
-
-        if(currentState ==ChooseWeapon){
-            // print ayat 
-        }
-        else if(currentState == ChooseEnemy){
-            // print instruction to window
-        }
-        else if (currentState == AllEnemyDead){
-            /// print instruction of you win this game
-        }
-        else if (currentState == PlayerDie){
-            /// print instruction of you lose this game
-        }
-        else if (currentState == CompleteGame){
-
-        }
+        DrawScreens(view); // render everything in one go in screens.cpp
         SDL_RenderPresent(renderer);
 
     }
@@ -305,7 +298,11 @@ int main(int argc, char* argv[]){
         Mix_FreeMusic(music); // freed the music obj
     }
     Mix_CloseAudio();
-
+    introClip.Free();
+    linkHitsBokobolin.Free();
+    linkHitsStalfos.Free();
+    bokobolinHitsLink.Free();
+    stalfosHitsLink.Free();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }
