@@ -69,10 +69,44 @@ INSTRUMENTATION = r'''
 
         bool ap_haveLevel = currentLevel < levelEnemies.size();   // levelEnemies[currentLevel] only exists once StartLevel has run for it
 
+        // optional frame cap (autoplay.py --fps N): the test copy sleeps so each frame lasts about 1/N seconds.
+        // 0 means no cap. This lets us check that physics and recall take the same real time at any fps.
+        static const double ap_cap = @FPS@;
+        if (ap_cap > 0) {
+            static auto ap_prev = std::chrono::steady_clock::now();
+            ap_prev += std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / ap_cap));
+            auto ap_now = std::chrono::steady_clock::now();
+            if (ap_prev < ap_now) ap_prev = ap_now;   // a frame that ran long: do not try to catch up
+            std::this_thread::sleep_until(ap_prev);
+        }
+
+        // real seconds since the first frame, in milliseconds, so every log line shows how long things take
+        static const auto ap_t0 = std::chrono::steady_clock::now();
+        long ap_ms = (long)(std::chrono::duration<double>(std::chrono::steady_clock::now() - ap_t0).count() * 1000);
+
+        // log every time Link or an enemy changes its own state (Attacking, Knocked, Recalling..., Idle) with the time
+        static const char* ap_names[] = {"Idle","DealDamage","Attacking","Knocking","Knocked","Recalling_After_Attack","Recalling_After_Knocked"};
+        static int ap_lastLink = -1;
+        if ((int)MainPlayer->currentState != ap_lastLink) {
+            std::cerr << (std::string("[link] ") + ap_names[(int)MainPlayer->currentState] + " t=" + std::to_string(ap_ms) + "ms\n");
+            ap_lastLink = (int)MainPlayer->currentState;
+        }
+        static std::map<Enemy*, int> ap_lastEnemy;
+        if (ap_haveLevel)
+            for (size_t i = 0; i < levelEnemies[currentLevel].size(); i++) {
+                Enemy* e = levelEnemies[currentLevel][i].get();
+                auto found = ap_lastEnemy.find(e);
+                if (found == ap_lastEnemy.end()) found = ap_lastEnemy.emplace(e, 0).first;   // new enemy starts as Idle
+                if ((int)e->currentState != found->second) {
+                    std::cerr << (std::string("[e") + std::to_string(i) + "] " + ap_names[(int)e->currentState] + " t=" + std::to_string(ap_ms) + "ms\n");
+                    found->second = (int)e->currentState;
+                }
+            }
+
         static int ap_lastState = -1;
         if ((int)currentState != ap_lastState) {
             std::ostringstream ap_line;   // build the whole line first, then write it in one go (the key-press thread also logs)
-            ap_line << "[state] " << (int)currentState << " frame=" << ap_frame << " turn=" << (int)turn
+            ap_line << "[state] " << (int)currentState << " t=" << ap_ms << "ms frame=" << ap_frame << " turn=" << (int)turn
                     << " link=(" << MainPlayer->posX << "," << MainPlayer->posY << ")";
             if (ap_haveLevel)
                 for (size_t i = 0; i < levelEnemies[currentLevel].size(); i++)
@@ -143,7 +177,7 @@ def run(command, what):
         sys.exit(2)
 
 
-def build(root, build_dir, source, start_state, states):
+def build(root, build_dir, source, start_state, states, fps=0.0):
     text = source
     for marker in (MARKER, AFTER_LOOP_MARKER):
         if text.count(marker) != 1:
@@ -155,14 +189,14 @@ def build(root, build_dir, source, start_state, states):
     # SDL_VIDEODRIVER=dummy has no real GPU surface to accelerate; asking for SDL_RENDERER_ACCELERATED under it
     # hangs on this machine instead of failing cleanly, so the test copy renders in software instead.
     text = text.replace("SDL_RENDERER_ACCELERATED", "SDL_RENDERER_SOFTWARE")
-    text = text.replace(MARKER, INSTRUMENTATION + MARKER)
+    text = text.replace(MARKER, INSTRUMENTATION.replace("@FPS@", repr(float(fps))) + MARKER)
     text = text.replace(AFTER_LOOP_MARKER,
                         'std::cerr << (std::string("[final] ") + std::to_string((int)currentState) + "\\n");\n    ' + AFTER_LOOP_MARKER)
     if start_state:
         if start_state not in states:
             sys.exit(f"--start {start_state}: not a state. States are: {', '.join(states)}")
         text = re.sub(r"(GameState\s+currentState\s*=\s*)\w+(\s*;)", rf"\g<1>{start_state}\g<2>", text, count=1)
-    text = "#include <set>\n#include <sstream>\n#include <string>\n" + text
+    text = "#include <chrono>\n#include <map>\n#include <set>\n#include <sstream>\n#include <string>\n#include <thread>\n" + text
 
     instrumented = build_dir / "main_instrumented.cpp"
     instrumented.write_text(text)
@@ -186,6 +220,7 @@ def main():
     parser.add_argument("--root", default=str(TOOLS_DIR.parent), help="project folder to test (default: this repo)")
     parser.add_argument("--step", type=float, default=2.0, help="seconds to let each round play out (default 2)")
     parser.add_argument("--timeout", type=float, help="kill the game after this many seconds (default: worked out from the rounds)")
+    parser.add_argument("--fps", type=float, default=0.0, help="cap the test copy at this many frames a second (default 0 = no cap, runs as fast as it can)")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -204,13 +239,13 @@ def main():
     build_dir = TOOLS_DIR / "build"
     build_dir.mkdir(exist_ok=True)
     print(f"building a test copy of {root / 'main.cpp'} ...")
-    exe = build(root, build_dir, source, args.start, states)
+    exe = build(root, build_dir, source, args.start, states, args.fps)
 
     timeout = args.timeout or (len(rounds) * (args.step + 0.3) + 2 * args.step + 20)
     # dummy video = no window, dummy audio = the game's music does not play out loud during a test
     env = dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="dummy", AUTOPLAY_STEP=str(args.step))
     out_file, err_file = build_dir / "run.out", build_dir / "run.err"
-    print(f"playing: rounds={rounds or 'none'} start={args.start or idle_state} (timeout {timeout:.0f}s)\n")
+    print(f"playing: rounds={rounds or 'none'} start={args.start or idle_state} fps={args.fps or 'no cap'} (timeout {timeout:.0f}s)\n")
     timed_out = False
     with open(out_file, "w") as out, open(err_file, "w") as err:
         # cwd=root so that files the game loads by relative path (assets/...) are found

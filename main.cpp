@@ -30,7 +30,6 @@ void DrawSprite(SDL_Renderer* renderer,SDL_Texture* texture, float centerX, floa
 // main fx is the entry point of the program
 int main(int argc, char* argv[]){
     std::ios_base::sync_with_stdio(false); //Optimize text printing(cout) by disconnecting to old C safety checks
- 
     enum GameState {// Enumuration is for readability for users like chooseweapon is read as "0" to computer and "1" for chooseenemy and goes on
         ChooseWeapon, // GameState is datatype
         ChooseEnemy,
@@ -186,13 +185,13 @@ int main(int argc, char* argv[]){
                 MainPlayer -> currentState = Player::Recalling_After_Attack; 
             }
             else if(MainPlayer -> currentState == Player::Recalling_After_Attack){
-                MainPlayer-> Return(MainPlayer -> RecallAttack);
+                MainPlayer-> Return(MainPlayer -> Recall_After_Attack,deltaTime);
             }
             if (MainPlayer -> TargetEnemy -> currentState == Enemy::Knocked){
                 MainPlayer -> TargetEnemy -> UpdateKnock(deltaTime);
             }
             else if(MainPlayer -> TargetEnemy -> currentState == Enemy::Recalling_After_Knocked){
-                MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> RecallKnocked);
+                MainPlayer -> TargetEnemy -> Return(MainPlayer -> TargetEnemy -> Recall_After_Knocked,deltaTime);
             }
             if ((MainPlayer -> currentState == Player::Idle) && (MainPlayer -> TargetEnemy -> currentState == Enemy::Idle)){
                 MainPlayer -> TargetEnemy = nullptr; // ensure the next loop doesnt run Player turn
@@ -249,13 +248,13 @@ int main(int argc, char* argv[]){
             levelEnemies[currentLevel][currentEnemyIndex] -> currentState = Enemy::Recalling_After_Attack;
         }
         else if(levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Recalling_After_Attack){ // prevent this condition to run when player hits enemy
-            levelEnemies[currentLevel][currentEnemyIndex] -> Return(levelEnemies[currentLevel][currentEnemyIndex] -> RecallAttack);
+            levelEnemies[currentLevel][currentEnemyIndex] -> Return(levelEnemies[currentLevel][currentEnemyIndex] -> Recall_After_Attack,deltaTime);
         }
         if(MainPlayer -> currentState == Player::Knocked){
             MainPlayer -> UpdateKnock(deltaTime);
         }
         else if(MainPlayer -> currentState == Player::Recalling_After_Knocked){
-            MainPlayer -> Return(MainPlayer -> RecallKnocked);
+            MainPlayer -> Return(MainPlayer -> Recall_After_Knocked,deltaTime);
         }
         if ((currentState ==EnemyTurn) && (MainPlayer -> currentState == Player::Idle) && (levelEnemies[currentLevel][currentEnemyIndex] -> currentState == Enemy::Idle)){
             currentState = NextTurn;      

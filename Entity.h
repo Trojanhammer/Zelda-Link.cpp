@@ -14,14 +14,20 @@ class Entity{
         bool isAttack = false;
         float posX;
         float posY;
+        float RecallClock = -1.0f; // to prevent the first time Return() function to run
         u_int16_t basePosX;
         u_int16_t basePosY;
         float vY; // velocityY
         float vX;
         float NormalizedHypotenous = 0;
-        std::vector<std::pair<float,float>>RecallAttack;
-        std::vector<std::pair<float,float>>RecallKnocked;
-
+        struct RecallPoint{
+            float posX;
+            float posY;
+            float time;
+        };
+        std::vector<RecallPoint> Recall_After_Attack;
+        std::vector<RecallPoint> Recall_After_Knocked;
+        float time = 0;
         enum GameState {
             Idle,
             DealDamage,
@@ -42,7 +48,7 @@ class Entity{
         void Attack(float posX, float posY,float deltaTime);
         void KnockBack(float vXOpponent, float vYOpponent);
         void UpdateKnock(float deltaTime);
-        void Return(std::vector<std::pair <float,float>>& Recall);
+        void Return(std::vector<RecallPoint>& Recall, float deltaTime);
 
         virtual ~Entity() = default; // destructor
 

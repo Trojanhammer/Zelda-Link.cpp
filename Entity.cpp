@@ -1,17 +1,40 @@
 #include "Entity.h"
 #include "CombatUtils.h"
 
-    void Entity::Return(std::vector<std::pair<float, float>>& Recall){
-        // read the pair from backwards and set to posX and posY
-        posX = Recall.back().first;
-        posY = Recall.back().second;
+    void Entity::Return(std::vector<RecallPoint>& Recall, float deltaTime){
+        if(RecallClock <0){
+            RecallClock = Recall.back().time;
+        }
+        RecallClock -= deltaTime;
+        int i;
 
-        Recall.pop_back(); // Delete last pair
+        // (98, 48, 2.5) -> (99,49,2.67) -> (100,50, 3) ->(x,y, 2.98) -> (x,y,2.5) -> (x,y,0)
+        //(99,49, 2.67) -> (x,y,2.6), (x,y,2.59) rati0 =0.8
+        
+        for (i = Recall.size() -1 ; i>0; i--){
+            if (Recall[i].time == RecallClock){
+                posX = Recall[i].posX;
+                posY = Recall[i].posY;
+                break;
+            }
+            else if (Recall[i].time > RecallClock && Recall[i-1].time < RecallClock){ 
+                float b = RecallClock - Recall[i-1].time;
+                float c = Recall[i].time - Recall[i-1].time;
+                float ratio = b/c;
+                posX = Recall[i-1].posX + (ratio * (Recall[i].posX - Recall[i-1].posX));
+                posY = Recall[i-1].posY + (ratio * (Recall[i].posY - Recall[i-1].posY));
+                break;
+            }
 
-        if(Recall.empty()){ // every recorded step has been replayed; exact float equality on posX/basePosX
-            posX = basePosX; // is not reliable here, the decayed walk-back rarely lands on it exactly
-            posY = basePosY;
+        }
+        if(RecallClock <= Recall[0].time){
+            posX = basePosX;
+            posY  = basePosY;
+            RecallClock = -1.0f; // Set back the to enable next round for Recalling
             currentState = Idle;
+            time =0;
+            Recall.clear();
+            return;
         }
     }
 
@@ -20,6 +43,9 @@
         vY = VyOpponent;
     }
     void Entity::UpdateKnock(float deltaTime){
+        if(Recall_After_Knocked.empty()){
+            Recall_After_Knocked.push_back({(float)basePosX,(float)basePosY,0.0f}); // record the base position of X and Y
+        }
         vX *= std::pow(0.90, deltaTime * 60.0f); // multiply by 60 to make it frame rate independent
         vY *= std::pow(0.90, deltaTime * 60.0f); 
         // alternative way to make it frame rate independent is to use std::pow(0.90, deltaTime * 60) instead of 0.90
@@ -29,9 +55,10 @@
             currentState = Recalling_After_Knocked;
             return;
         }
-        RecallKnocked.push_back({posX, posY});
+        time += deltaTime;
         posX += vX * deltaTime;
         posY += vY * deltaTime;
+        Recall_After_Knocked.push_back({posX,posY,time});
     }
 
     void Entity::TakeDamage(uint8_t damage){  
@@ -43,6 +70,10 @@
     }
 
     void Entity::Attack(float OppositionX, float OppositionY,float deltaTime){
+        if(Recall_After_Attack.empty()){
+            Recall_After_Attack.push_back({(float)basePosX,(float)basePosY,0.0f}); // record the base position of X and Y
+        }
+
         // set capped at 3000px/s
         // Assume use same speed which is 6 px per frame
         float dX = OppositionX - posX;
@@ -51,7 +82,8 @@
             currentState = Knocking;
             return;
         }
-        RecallAttack.push_back({posX,posY}); // record position of X and Y
+
+        time += deltaTime;
         float ratioX =0;
         float ratioY = 0;
         NormalizedHypotenous = sqrt((dX * dX)+(dY * dY));
@@ -70,4 +102,5 @@
         posX += vX;
         posY += vY;
         }
+        Recall_After_Attack.push_back({posX,posY,time}); // record position of X and Y
     }
