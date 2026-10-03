@@ -2,13 +2,15 @@
 
 <img src="assets/compressed/link-2x.png" alt="Pixel art of Link raising the Master Sword" width="130"> <img src="assets/compressed/bokobolin-2x.png" alt="Pixel art of Bokobolin wielding a wooden club" width="346"> <img src="assets/compressed/stalfos-2x.png" alt="Pixel art of Stalfos skeleton warrior" width="234">
 
-> **How this was built (AI use):** all the C++ game code is written by me, by hand. This is not vibe coding. I discuss ideas with Claude, write the code myself, then ask Claude to review it and point out mistakes so I can learn from them. The exception is the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules) and `check-memory.sh` were written with AI, to find bugs faster.
+> **How this was built (AI use):** the mechanics and the physics (turns, movement, knockback, the recall replay, levels, the state machines) are written by me, by hand. This is not vibe coding: I discuss an idea with Claude, then write it myself until I understand it, and ask Claude to review it and point out mistakes so I can learn from them. The exceptions, written mostly with AI to move faster: the SDL2 drawing code in `src/sdl/` (text with a built-in pixel font, health bars and prompts, the intro and cutscene player, the screen layout) and the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules), `tools/extract_frames.sh` and `check-memory.sh`.
 
 > **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. No plan to publicly release or distribute this as a playable game — any cross-platform builds are purely to learn the packaging process itself.
 
+A turn-based Zelda duel inspired by the *Recall* ability in *Tears of the Kingdom* and by Zelda's story, built as a way to learn C++.
+
 A game-physics exploration in C++ and SDL2, built **from scratch with no game engine and no physics library**. The goal is to understand how movement, knockback and a Tears-of-the-Kingdom-style *recall* (replaying past positions in reverse) actually work under the hood, instead of relying on an engine that hides them. It doubles as a way to learn core C++: classes, inheritance, pointers and memory management.
 
-Renders with SDL2: sprites, background music, vsync.
+Renders with SDL2: sprites, background music, vsync, text and health bars, an intro and hit cutscenes.
 
 ## How I work on this
 
@@ -23,7 +25,7 @@ Example: the turn flow started as `currentState` plus many bools (`isKnocked`, `
 
 The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability. There are 3 levels; the same two enemy types return each level with higher stats, built from one data table instead of separate hand-written variables per level.
 
-**Current focus:** mechanics have to satisfy me before animation, attack sounds or other polish get added. Movement is now frame-rate independent (speed × time instead of a fixed amount per frame); the recall replay hasn't caught up yet, see Limitations. Next physics step: real overlap-based collision.
+**Current focus:** mechanics have to satisfy me before animation or other polish get added, so the intro, text and hit cutscenes only came once they did. Movement and the recall replay are both frame-rate independent (speed × time instead of a fixed amount per frame; the recall plays back by elapsed seconds). Next physics step: real overlap-based collision.
 
 ## Concepts practiced
 
@@ -36,21 +38,25 @@ The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks
 - **Knockback and recall** — velocity with friction, and replaying stored positions in reverse to walk back to base
 - **State machines** — one `currentState` per entity instead of scattered bools; each side (player, enemy) checks and transitions its own state independently
 - **Data-driven design** — enemy stats per level live in one `LevelStats` table instead of a hand-written variable per level/enemy pair
-- **Frame-rate independence** — `Attack()`/`UpdateKnock()` moved from a fixed amount per frame to speed × `deltaTime`; learned the hard way that a stop-threshold has to compare a stable speed, not a displacement that shrinks with `deltaTime`, and that a one-shot state transition has to actually leave its own state, or it silently re-fires every single frame instead of once
+- **Frame-rate independence** — `Attack()`/`UpdateKnock()` moved from a fixed amount per frame to speed × `deltaTime`, and the recall replay stores a timestamp with every position and plays back by elapsed seconds, blending between the two nearest positions (checked with the autoplay script at 40 / 120 fps and unthrottled); learned the hard way that a stop-threshold has to compare a stable speed, not a displacement that shrinks with `deltaTime`, and that a one-shot state transition has to actually leave its own state, or it silently re-fires every single frame instead of once
 - **Automated testing** — a script that plays the game headless and checks rules every frame; running it unthrottled (tens of thousands of frames a second) is what actually surfaced the bugs above, they were far too fast to catch by eye
 - **SDL2 fundamentals** — window/renderer setup, sprite drawing, background music, the event loop and why blocking it (e.g. `SDL_Delay`) breaks rendering on macOS
 
 ## Build
 
 ```bash
-clang++ -std=c++17 main.cpp weapon.cpp Enemy.cpp Entity.cpp Player.cpp \
+clang++ -std=c++17 $(find src -name '*.cpp') -Isrc -Isrc/entities -Isrc/sdl \
   -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE -L/opt/homebrew/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_mixer -Wl,-framework,Cocoa \
   -o game
 ```
 
 The game runs silently if `assets/audio/` isn't present locally — the background music file is gitignored (copyrighted).
 
+The intro and the hit cutscenes are the `assets/*.mp4` clips, turned into numbered pictures in `assets/frames/` by `tools/extract_frames.sh` (needs `ffmpeg`; SDL2 cannot play video). Without that folder the game still runs and just skips them.
+
 ## Files
+
+All game code is in `src/`: `main.cpp` and the small shared headers sit at the top, the actors (`Entity`, `Player`, `Enemy`, `Weapon`) in `src/entities/`, and everything that draws with SDL2 (`ui`, `clip`, `screens`) in `src/sdl/`. The file names below leave out the folder, and they are relative to `src/` unless they start with `tools/`, `assets/` or say otherwise.
 
 | File | Purpose |
 |---|---|
@@ -60,31 +66,28 @@ The game runs silently if `assets/audio/` isn't present locally — the backgrou
 | `Enemy.h/.cpp` | `Enemy`, built from `EnemyStats` |
 | `Player.h/.cpp` | Player-only state: equipped weapon, target enemy |
 | `CombatUtils.h` | Shared `ApplyDamage()` used by both `Enemy` and `Player` |
-| `main-sdl.cpp` | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
+| `ui.h/.cpp` | Text, health labels, the prompt bar and the game-over overlay, drawn with a small built-in 5×7 pixel font (no SDL_ttf, no font file) |
+| `clip.h/.cpp` | `Clip`: plays an animation stored as numbered pictures, picking the picture by elapsed seconds so it takes the same time at any frame rate |
+| `screens.h/.cpp` | `DrawScreens()`: draws a whole frame from one function: sprites, health labels, the prompts for each game state, the intro, the cutscenes, game over / you win |
+| `GameState.h`, `levels.h` | The big game phases (`enum GameState`) and the `LevelStats` table with each level's enemy stats, both moved out of `main.cpp` |
+| `main-sdl.cpp` (repo root) | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
 | `sdl-notes.txt` | Notes specifically on SDL2 fundamentals and V-Sync |
 | `tools/autoplay.py`, `tools/autoplay_driver.cpp` | Plays the real game headless by injecting key presses, prints every state change and checks rules. This is how the bugs get found (written with AI) |
+| `tools/extract_frames.sh` | Turns `assets/*.mp4` into numbered JPEGs in `assets/frames/` for the intro and cutscenes |
 | `check-memory.sh` | Samples the running game's RAM once per second into `memory-log.csv` (written with AI) |
 | `TODO.md` | Worklist |
 | `assets/compressed/` | Cropped, palette-reduced character sprites (a few KB each) — the `*-2x.png` copies are what the README shows |
-| `assets/*.mp4` | Intro and hit-animation clips (not rendered in-game yet) |
+| `assets/*.mp4` | Intro and hit-animation clips (the source for `assets/frames/`) |
+| `assets/frames/` | The clips as numbered JPEGs, 12 per second (about 5 MB) |
 | `assets/*.jpeg` | Original 2048×2048 character art, kept as source for the compressed sprites |
 | `assets/audio/` | Background music, local-only, gitignored (copyrighted) |
 
-## Limitations
-
-- No win/lose screen text yet, and no sound effects on attacks — intentionally on hold until the mechanics themselves feel solid
-- The recall replay (`Return()`) still steps through recorded positions one per frame, so it isn't frame-rate independent yet like the rest of the physics — see Future work
-
 ## Future work
 
-- Make the recall replay frame-rate independent: store a timestamp alongside each recorded position instead of just (x, y), and pace the walk-back by elapsed real time instead of by one step per frame
 - Real overlap-based collision
-- Sound effects for attacks
-- An intro screen before the game starts
 - Package builds for Windows, macOS, and Linux
-- Win/lose text on screen (SDL_ttf)
-- Long-shot goal: get this running on a jailbroken Wii
+- Long-shot goals: get this running on a jailbroken Wii and a jailbroken PS5
 
 ## Status
 

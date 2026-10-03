@@ -44,16 +44,26 @@ static void logLine(const std::string& text) {
     std::cerr << (text + "\n");
 }
 
-static void pressKey(SDL_Keycode key) {
+static void pressKey(SDL_Keycode key, bool log = true) {
     SDL_Event event{};
     event.type = SDL_KEYDOWN;
     event.key.keysym.sym = key;   // SDLK_1 is just the character '1'
     event.key.state = SDL_PRESSED;
     SDL_PushEvent(&event);
-    logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressed key " + SDL_GetKeyName(key));
+    if (log) logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressed key " + SDL_GetKeyName(key));
 }
 
 static void playRounds(std::vector<std::string> rounds, double step) {
+    if (const char* intro = std::getenv("AUTOPLAY_INTRO_SECONDS")) {
+        // The intro ignores every key until its video and typing are done, so just keep pressing Enter for a while.
+        // Presses that come after the intro are harmless: the weapon menu only reacts to 1 and 2.
+        const double until = secondsSinceStart() + std::atof(intro);
+        logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressing Enter for " + intro + " s (the intro)");
+        while (secondsSinceStart() < until && !gameFinished) {
+            pressKey(SDLK_RETURN, false);
+            sleepSeconds(0.5);
+        }
+    }
     sleepSeconds(step);   // give the game a moment to start up and reach its first menu
     for (const std::string& round : rounds) {
         if (gameFinished) return;

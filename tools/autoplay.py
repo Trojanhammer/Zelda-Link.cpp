@@ -6,7 +6,7 @@ It never touches your main.cpp. It makes a temporary copy in tools/build/ that
   * prints every game-state change (with the positions of Link and the enemies), and
   * checks a few rules on every frame (listed below),
 links that copy with tools/autoplay_driver.cpp (which presses the keys), and runs it with
-SDL's "dummy" video driver, so no window opens and a whole round takes about a second.
+SDL's "dummy" video driver, so no window opens. Movement is in real seconds now, so a round takes about 6 seconds.
 
 Usage:
     python3 tools/autoplay.py                          one round: weapon 1, enemy 1
@@ -14,6 +14,12 @@ Usage:
     python3 tools/autoplay.py --start StartEnemyTurn   start straight in a state, press nothing
                                                        (handy for testing the enemy turn on its own)
     python3 tools/autoplay.py --root SOME/FOLDER       test another copy of the project
+    python3 tools/autoplay.py --intro                  play the intro too (presses Enter until the game starts)
+    python3 tools/autoplay.py --clips --step 25        play the hit cutscenes too (about 4 s each, so give each round more time)
+    python3 tools/autoplay.py --fps 30 --shots 500     save a picture of the window every 500 ms into tools/build/shots/
+
+By default the test copy skips the intro and the hit cutscenes (it sets `showIntro` and `playAttackClips` to false), so a
+round is just the physics. The game code is looked up in <root>/src/ and every folder inside it (or in <root> if there is no src folder).
 
 Rules checked on every frame (a broken rule prints [VIOLATION]):
     0. the turn counter never wraps around below 0
@@ -28,13 +34,14 @@ Verdict: FAIL if a rule is broken, if the game loop ends by itself, if a scripte
 to the first state, or if the game hangs. Exit code 0 = pass, 1 = fail, 2 = could not build.
 
 The inserted code expects main.cpp to have variables called currentState, currentEnemyIndex, turn, currentLevel,
-MainPlayer and levelEnemies (a vector of vector of unique_ptr<Enemy>, indexed by currentLevel). If you rename
+MainPlayer, levelEnemies (a vector of vector of unique_ptr<Enemy>, indexed by currentLevel) and renderer. If you rename
 them, update INSTRUMENTATION below.
 """
 
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -60,6 +67,7 @@ MENU_STATE = "ChooseWeapon"
 MARKER = "SDL_RenderPresent(renderer);"          # the per-frame instrumentation goes right before this line
 AFTER_LOOP_MARKER = "SDL_DestroyRenderer(renderer);"   # first line after the game loop: we log the final state here,
                                                        # because a `break;` skips the per-frame instrumentation
+INTRO_SECONDS = 16.0   # how long --intro keeps pressing Enter: the video is 6 s, then the story types for about 4 s, plus some spare
 TERMINAL_STATES = {"AllEnemyDead", "PlayerDie"}  # states that are allowed to end the game
 
 INSTRUMENTATION = r'''
@@ -150,15 +158,48 @@ INSTRUMENTATION = r'''
         } else if (ap_target == nullptr && !ap_home(MainPlayer.get()) && !ap_knocked(MainPlayer.get())) {
             ap_violation("Link left his base outside his own turn without being knocked");
         }
+
+        // optional pictures of the window (autoplay.py --shots MS): one every MS milliseconds, named with the time and the state.
+        // This runs after everything has been drawn this frame, right before the frame is shown.
+        static const char* ap_shotDir = std::getenv("AUTOPLAY_SHOTS_DIR");
+        static const long ap_shotEvery = std::getenv("AUTOPLAY_SHOTS_MS") ? std::atol(std::getenv("AUTOPLAY_SHOTS_MS")) : 0;
+        static long ap_lastShot = -1000000;
+        if (ap_shotDir != nullptr && ap_shotEvery > 0 && ap_ms - ap_lastShot >= ap_shotEvery) {
+            ap_lastShot = ap_ms;
+            static const char* ap_stateNames[] = {@STATE_NAMES@};
+            int ap_w = 0, ap_h = 0;
+            SDL_GetRendererOutputSize(renderer, &ap_w, &ap_h);
+            SDL_Surface* ap_pic = SDL_CreateRGBSurfaceWithFormat(0, ap_w, ap_h, 32, SDL_PIXELFORMAT_ARGB8888);
+            if (ap_pic != nullptr) {
+                SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_ARGB8888, ap_pic->pixels, ap_pic->pitch);
+                char ap_file[64];
+                std::snprintf(ap_file, sizeof(ap_file), "/shot_%06ldms_%s.bmp", ap_ms, ap_stateNames[(int)currentState]);
+                SDL_SaveBMP(ap_pic, (std::string(ap_shotDir) + ap_file).c_str());
+                SDL_FreeSurface(ap_pic);
+            }
+        }
     }
     '''
+
+
+def find_enum_text(src, main_text):
+    """The text that defines the top-level `enum GameState`: main.cpp itself, or a header main.cpp includes directly
+    (the enum may be moved out of main()). Entity.h also has an `enum GameState`, but main.cpp does not include it directly."""
+    pattern = r"enum\s+GameState\s*\{"
+    if re.search(pattern, main_text):
+        return main_text
+    for name in re.findall(r'#include\s+"([^"]+)"', main_text):
+        header = next(src.rglob(name), None)   # the header may be in any folder under src/ (entities/, sdl/, ...)
+        if header is not None and header.is_file() and re.search(pattern, header.read_text()):
+            return header.read_text()
+    return main_text
 
 
 def parse_enum(source):
     """Return the names inside `enum GameState { ... }`, in order (so we can print names instead of numbers)."""
     match = re.search(r"enum\s+GameState\s*\{(.*?)\}", source, re.S)
     if not match:
-        sys.exit("could not find `enum GameState { ... }` in main.cpp")
+        sys.exit("could not find `enum GameState { ... }` in main.cpp or in a header it includes")
     body = re.sub(r"//[^\n]*", "", match.group(1))   # drop comments
     return [name.strip() for name in body.split(",") if name.strip()]
 
@@ -177,7 +218,7 @@ def run(command, what):
         sys.exit(2)
 
 
-def build(root, build_dir, source, start_state, states, fps=0.0):
+def build(src, build_dir, source, start_state, states, fps=0.0, intro=False, clips=False):
     text = source
     for marker in (MARKER, AFTER_LOOP_MARKER):
         if text.count(marker) != 1:
@@ -189,25 +230,34 @@ def build(root, build_dir, source, start_state, states, fps=0.0):
     # SDL_VIDEODRIVER=dummy has no real GPU surface to accelerate; asking for SDL_RENDERER_ACCELERATED under it
     # hangs on this machine instead of failing cleanly, so the test copy renders in software instead.
     text = text.replace("SDL_RENDERER_ACCELERATED", "SDL_RENDERER_SOFTWARE")
-    text = text.replace(MARKER, INSTRUMENTATION.replace("@FPS@", repr(float(fps))) + MARKER)
+    # The test copy skips the intro and the hit cutscenes unless asked to play them, so a round takes about a second.
+    # (If main.cpp has no such variable, nothing happens.)
+    for flag, wanted in (("showIntro", intro), ("playAttackClips", clips)):
+        text = re.sub(rf"(bool\s+{flag}\s*=\s*)(?:true|false)(\s*;)", rf"\g<1>{'true' if wanted else 'false'}\g<2>", text, count=1)
+    instrumentation = (INSTRUMENTATION.replace("@FPS@", repr(float(fps)))
+                       .replace("@STATE_NAMES@", ", ".join(f'"{name}"' for name in states)))
+    text = text.replace(MARKER, instrumentation + MARKER)
     text = text.replace(AFTER_LOOP_MARKER,
                         'std::cerr << (std::string("[final] ") + std::to_string((int)currentState) + "\\n");\n    ' + AFTER_LOOP_MARKER)
     if start_state:
         if start_state not in states:
             sys.exit(f"--start {start_state}: not a state. States are: {', '.join(states)}")
         text = re.sub(r"(GameState\s+currentState\s*=\s*)\w+(\s*;)", rf"\g<1>{start_state}\g<2>", text, count=1)
-    text = "#include <chrono>\n#include <map>\n#include <set>\n#include <sstream>\n#include <string>\n#include <thread>\n" + text
+    text = ("#include <chrono>\n#include <cstdio>\n#include <cstdlib>\n#include <map>\n#include <set>\n#include <sstream>\n"
+            "#include <string>\n#include <thread>\n" + text)
 
     instrumented = build_dir / "main_instrumented.cpp"
     instrumented.write_text(text)
 
     main_object = build_dir / "main_instrumented.o"
-    run(["clang++", *CXXFLAGS, "-I", str(root), "-Dmain=game_main", "-Wno-return-type",
+    include_dirs = [src] + sorted(d for d in src.rglob("*") if d.is_dir())   # src/ and every folder in it, so "Enemy.h" is found wherever it is
+    include_flags = [flag for d in include_dirs for flag in ("-I", str(d))]
+    run(["clang++", *CXXFLAGS, *include_flags, "-Dmain=game_main", "-Wno-return-type",
          "-c", str(instrumented), "-o", str(main_object)], "compiling the instrumented main.cpp")
 
-    others = [p for p in sorted(root.glob("*.cpp")) if not has_main(p)]   # every game .cpp except the ones with a main()
+    others = [p for p in sorted(src.rglob("*.cpp")) if not has_main(p)]   # every game .cpp (in any folder under src/) except the ones with a main()
     exe = build_dir / "autoplay"
-    run(["clang++", *CXXFLAGS, "-I", str(root), str(TOOLS_DIR / "autoplay_driver.cpp"), str(main_object),
+    run(["clang++", *CXXFLAGS, *include_flags, str(TOOLS_DIR / "autoplay_driver.cpp"), str(main_object),
          *map(str, others), *LDFLAGS, "-o", str(exe)], "linking")
     return exe
 
@@ -218,14 +268,18 @@ def main():
     parser.add_argument("rounds", nargs="*", help="rounds to play, each <weapon key><enemy key>, e.g. 11 12 22")
     parser.add_argument("--start", metavar="STATE", help="start the game in this state instead of the normal one")
     parser.add_argument("--root", default=str(TOOLS_DIR.parent), help="project folder to test (default: this repo)")
-    parser.add_argument("--step", type=float, default=2.0, help="seconds to let each round play out (default 2)")
+    parser.add_argument("--step", type=float, default=8.0, help="seconds to let each round play out (default 8; a round takes about 6)")
     parser.add_argument("--timeout", type=float, help="kill the game after this many seconds (default: worked out from the rounds)")
     parser.add_argument("--fps", type=float, default=0.0, help="cap the test copy at this many frames a second (default 0 = no cap, runs as fast as it can)")
+    parser.add_argument("--intro", action="store_true", help=f"play the intro too (presses Enter for {INTRO_SECONDS:.0f} s before the first round)")
+    parser.add_argument("--clips", action="store_true", help="play the hit cutscenes too (about 4 s each: give --step more seconds)")
+    parser.add_argument("--shots", type=int, metavar="MS", help="save a picture of the window every MS milliseconds into tools/build/shots/")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
-    source = (root / "main.cpp").read_text()
-    states = parse_enum(source)
+    src = root / "src" if (root / "src" / "main.cpp").is_file() else root   # the game code lives in src/ (older layout: next to README)
+    source = (src / "main.cpp").read_text()
+    states = parse_enum(find_enum_text(src, source))
     if MENU_STATE in states:
         idle_state = MENU_STATE
     else:
@@ -238,12 +292,20 @@ def main():
 
     build_dir = TOOLS_DIR / "build"
     build_dir.mkdir(exist_ok=True)
-    print(f"building a test copy of {root / 'main.cpp'} ...")
-    exe = build(root, build_dir, source, args.start, states, args.fps)
+    print(f"building a test copy of {src / 'main.cpp'} ...")
+    exe = build(src, build_dir, source, args.start, states, args.fps, args.intro, args.clips)
 
-    timeout = args.timeout or (len(rounds) * (args.step + 0.3) + 2 * args.step + 20)
+    timeout = args.timeout or (len(rounds) * (args.step + 0.3) + 2 * args.step + 20 + (INTRO_SECONDS if args.intro else 0))
     # dummy video = no window, dummy audio = the game's music does not play out loud during a test
     env = dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="dummy", AUTOPLAY_STEP=str(args.step))
+    if args.intro:
+        env["AUTOPLAY_INTRO_SECONDS"] = str(INTRO_SECONDS)
+    shots_dir = build_dir / "shots"
+    if args.shots:
+        shutil.rmtree(shots_dir, ignore_errors=True)
+        shots_dir.mkdir()
+        env["AUTOPLAY_SHOTS_DIR"] = str(shots_dir)
+        env["AUTOPLAY_SHOTS_MS"] = str(args.shots)
     out_file, err_file = build_dir / "run.out", build_dir / "run.err"
     print(f"playing: rounds={rounds or 'none'} start={args.start or idle_state} fps={args.fps or 'no cap'} (timeout {timeout:.0f}s)\n")
     timed_out = False
@@ -298,7 +360,7 @@ def main():
 
     # ---- the verdict ----
     completed = sum(1 for previous, current in zip(seen_states, seen_states[1:]) if current == idle_state and previous != idle_state)
-    expected = len(rounds) + (1 if args.start and args.start != idle_state else 0)
+    expected = len(rounds) + (1 if args.start and args.start != idle_state else 0) + (1 if args.intro else 0)   # the intro ends by entering the menu once
     game_over = next((s for s in seen_states if s in TERMINAL_STATES), None)
 
     problems = []
@@ -332,6 +394,8 @@ def main():
         problems.append(f"only {completed} of {expected} rounds got back to {idle_state}; "
                         f"the game finished in state {seen_states[-1] if seen_states else '?'}")
 
+    if args.shots:
+        print(f"\n{len(list(shots_dir.glob('*.bmp')))} pictures saved in {shots_dir}")
     print(f"\nrounds back at {idle_state}: {completed} of {expected}" + (f"   (game ended in {game_over})" if game_over else ""))
     if problems:
         print("\nFAIL")
