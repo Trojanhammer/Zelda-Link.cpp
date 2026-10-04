@@ -11,7 +11,6 @@ class Entity{
         u_int8_t maxHealth;
         u_int8_t attackPower;
         bool isAlive = true;
-        bool isAttack = false;
         float posX;
         float posY;
         float RecallClock = -1.0f; // to prevent the first time Return() function to run

@@ -81,10 +81,11 @@ int main(int argc, char* argv[]){
     Enemy::MainPlayer = MainPlayer.get(); // set it once after we made player object so every enemy now shares same pointer instead of assign one by one
     // Remove future bugs by discarding the each enemy have their own line of code to player object.it is assigned only in one single code to prevent wrong assignment.
     // smart pointers
-    auto MasterSword = std::make_unique<Weapon>("Master Sword",50,2);
-    auto OcarinaSword = std::make_unique<Weapon>("Ocarina Sword",30,2);
+    MainPlayer -> WeaponList.push_back(std::make_unique<Weapon>("Master Sword",50,2));
+    MainPlayer -> WeaponList.push_back(std::make_unique<Weapon>("Ocarina Sword",30,2));
+    Weapon* MasterSword = MainPlayer -> WeaponList[0].get(); // raw pointer to the uniquq_ptr vector
+    Weapon* OcarinaSword = MainPlayer -> WeaponList[1].get();
     std::vector<std::vector<std::unique_ptr<Enemy>>> levelEnemies; // store  unique_ptr in 2d vector (dynamic array)
-    
     ScreenView view{renderer, link_texture, bokobolin_texture, stalfos_texture, spriteScale, currentState, currentLevel, MaxLevel, currentEnemyIndex, *MainPlayer, levelEnemies, *MasterSword, *OcarinaSword, playingClip, clipCaption, introClip, storyTime, typingSpeed, storyLines};
     
     auto lastTime = std::chrono::high_resolution_clock::now();
@@ -95,6 +96,16 @@ int main(int argc, char* argv[]){
             if(currentLevel +1 < MaxLevel){
                 currentLevel++;
                 currentState = StartLevel;
+                if(currentLevel ==1){
+                    MainPlayer -> Next_Level_Weapon(currentLevel); 
+                    MainPlayer -> maxHealth = 150;
+                    MainPlayer -> health = MainPlayer -> maxHealth;
+                }
+                else{
+                    MainPlayer -> Next_Level_Weapon(currentLevel); 
+                    MainPlayer -> maxHealth = 200;
+                    MainPlayer -> health = MainPlayer -> maxHealth;
+                }
             }
             else {
                 currentState = CompleteGame;
@@ -130,11 +141,11 @@ int main(int argc, char* argv[]){
                 }
                 else if(currentState == ChooseWeapon){
                     if(event.key.keysym.sym == SDLK_1 && MasterSword -> durability > 0){
-                        MainPlayer -> EquippedWeapon = MasterSword.get(); //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
+                        MainPlayer -> EquippedWeapon = MasterSword; //.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
                         currentState = ChooseEnemy;
                     }
                     else if(event.key.keysym.sym == SDLK_2 &&OcarinaSword -> durability > 0){
-                        MainPlayer -> EquippedWeapon = OcarinaSword.get();
+                        MainPlayer -> EquippedWeapon = OcarinaSword;
                         currentState = ChooseEnemy;
                     }
                     
