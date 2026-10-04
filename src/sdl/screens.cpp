@@ -1,18 +1,27 @@
 #include "screens.h"
 #include "ui.h"
+#include "input.h"   // Input::Choice(): "X" / "O" with a gamepad, "1" / "2" with the keyboard
 
 #include <cmath>
 #include <string>
 
 namespace {
-    // "[1] MASTER SWORD (2 LEFT)" or "[2] OCARINA SWORD (BROKEN)"
+    // "[1] MASTER SWORD (2 LEFT)" or "[O] OCARINA SWORD (BROKEN)" (the button names follow what the player used last)
     std::string WeaponLabel(int key, const Weapon& weapon) {
-        return "[" + std::to_string(key) + "] " + weapon.name + (weapon.durability > 0 ? " (" + std::to_string((int)weapon.durability) + " LEFT)" : " (BROKEN)");
+        return "[" + Input::Choice(key) + "] " + weapon.name + (weapon.durability > 0 ? " (" + std::to_string((int)weapon.durability) + " LEFT)" : " (BROKEN)");
+    }
+
+    // "MASTER SWORD: 50 DAMAGE" in Link's turn, "10 DAMAGE" in an enemy's turn
+    std::string DamageLine(const Player& player, const Enemy& turnEnemy) {
+        if(player.TargetEnemy != nullptr && player.EquippedWeapon != nullptr){
+            return player.EquippedWeapon -> name + ": " + std::to_string((int)player.EquippedWeapon -> damage) + " DAMAGE";
+        }
+        return std::to_string((int)turnEnemy.attackPower) + " DAMAGE";
     }
 
     // "[1] ATTACK BOKOBOLIN" or "BOKOBOLIN DEFEATED"
     std::string TargetLabel(int key, const Enemy& enemy) {
-        return enemy.isAlive ? "[" + std::to_string(key) + "] ATTACK " + enemy.name : enemy.name + " DEFEATED";
+        return enemy.isAlive ? "[" + Input::Choice(key) + "] ATTACK " + enemy.name : enemy.name + " DEFEATED";
     }
 }
 
@@ -40,7 +49,7 @@ void DrawScreens(const ScreenView& view) {
 
     if(view.playingClip != nullptr){
         view.playingClip -> Draw(renderer); // covers the whole scene
-        UI::DrawPromptBar(renderer, view.clipCaption, "PRESS ANY KEY TO SKIP");
+        UI::DrawPromptBar(renderer, view.clipCaption, DamageLine(player, *turnEnemy)); // a cutscene cannot be skipped
     }
     else if(view.currentState == Intro){
         view.introClip.Draw(renderer);
@@ -51,7 +60,7 @@ void DrawScreens(const ScreenView& view) {
             int typed = (int)(view.storyTime * view.typingSpeed); // 1.5 s * 40 = 60 letters so far
             UI::DrawLinesCentered(renderer, view.storyLines, 400, 372, 2, UI::DARK, typed);
             if(typed >= UI::CountLetters(view.storyLines) && std::fmod(view.storyTime, 1.0f) < 0.6f){ // blinks
-                UI::DrawTextCentered(renderer, "PRESS ENTER TO START", 400, 466, 2, UI::RED);
+                UI::DrawTextCentered(renderer, "PRESS " + Input::StartButton() + " TO START", 400, 466, 2, UI::RED);
             }
         }
     }
@@ -63,11 +72,10 @@ void DrawScreens(const ScreenView& view) {
         UI::DrawOverlay(renderer, "YOU WIN!", "ALL " + std::to_string((int)view.maxLevel) + " LEVELS CLEARED", "CLOSE THE WINDOW TO QUIT");
     }
     else if(player.TargetEnemy != nullptr && player.EquippedWeapon != nullptr){ // Link's turn is playing out
-        UI::DrawPromptBar(renderer, "LINK ATTACKS " + player.TargetEnemy -> name + "!",
-                          player.EquippedWeapon -> name + ": " + std::to_string((int)player.EquippedWeapon -> damage) + " DAMAGE");
+        UI::DrawPromptBar(renderer, "LINK ATTACKS " + player.TargetEnemy -> name + "!", DamageLine(player, *turnEnemy));
     }
     else if(view.currentState == EnemyTurn || view.currentState == PlayerDie){ // an enemy is attacking
-        UI::DrawPromptBar(renderer, turnEnemy -> name + " ATTACKS LINK!", std::to_string((int)turnEnemy -> attackPower) + " DAMAGE");
+        UI::DrawPromptBar(renderer, turnEnemy -> name + " ATTACKS LINK!", DamageLine(player, *turnEnemy));
     }
     else if(view.currentState == ChooseWeapon){
         // (with both swords broken main() switches to PlayerDie, so this menu always has a sword to offer)

@@ -17,6 +17,7 @@ Usage:
     python3 tools/autoplay.py --intro                  play the intro too (presses Enter until the game starts)
     python3 tools/autoplay.py --clips --step 25        play the hit cutscenes too (about 4 s each, so give each round more time)
     python3 tools/autoplay.py --fps 30 --shots 500     save a picture of the window every 500 ms into tools/build/shots/
+    python3 tools/autoplay.py --pad                    press gamepad buttons (X = key 1 / Enter, O = key 2) instead of keys
 
 By default the test copy skips the intro and the hit cutscenes (it sets `showIntro` and `playAttackClips` to false), so a
 round is just the physics. The game code is looked up in <root>/src/ and every folder inside it (or in <root> if there is no src folder).
@@ -273,6 +274,7 @@ def main():
     parser.add_argument("--fps", type=float, default=0.0, help="cap the test copy at this many frames a second (default 0 = no cap, runs as fast as it can)")
     parser.add_argument("--intro", action="store_true", help=f"play the intro too (presses Enter for {INTRO_SECONDS:.0f} s before the first round)")
     parser.add_argument("--clips", action="store_true", help="play the hit cutscenes too (about 4 s each: give --step more seconds)")
+    parser.add_argument("--pad", action="store_true", help="press gamepad buttons instead of keys (X = key 1 and Enter, O = key 2)")
     parser.add_argument("--shots", type=int, metavar="MS", help="save a picture of the window every MS milliseconds into tools/build/shots/")
     args = parser.parse_args()
 
@@ -300,6 +302,8 @@ def main():
     env = dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="dummy", AUTOPLAY_STEP=str(args.step))
     if args.intro:
         env["AUTOPLAY_INTRO_SECONDS"] = str(INTRO_SECONDS)
+    if args.pad:
+        env["AUTOPLAY_PAD"] = "1"
     shots_dir = build_dir / "shots"
     if args.shots:
         shutil.rmtree(shots_dir, ignore_errors=True)

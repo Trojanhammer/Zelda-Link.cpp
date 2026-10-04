@@ -44,7 +44,21 @@ static void logLine(const std::string& text) {
     std::cerr << (text + "\n");
 }
 
+static bool usePad = false;   // AUTOPLAY_PAD=1: press gamepad buttons instead of keys
+
+// The same press as a gamepad: X (cross, SDL name "A") for key 1 and Enter, O (circle, "B") for key 2.
+static void pressPadButton(SDL_Keycode key, bool log) {
+    SDL_Event event{};
+    event.type = SDL_CONTROLLERBUTTONDOWN;
+    event.cbutton.button = (key == SDLK_2) ? SDL_CONTROLLER_BUTTON_B : SDL_CONTROLLER_BUTTON_A;
+    event.cbutton.state = SDL_PRESSED;
+    SDL_PushEvent(&event);
+    if (log) logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressed pad button " +
+                     (event.cbutton.button == SDL_CONTROLLER_BUTTON_B ? "O (circle)" : "X (cross)"));
+}
+
 static void pressKey(SDL_Keycode key, bool log = true) {
+    if (usePad) { pressPadButton(key, log); return; }
     SDL_Event event{};
     event.type = SDL_KEYDOWN;
     event.key.keysym.sym = key;   // SDLK_1 is just the character '1'
@@ -55,13 +69,21 @@ static void pressKey(SDL_Keycode key, bool log = true) {
 
 static void playRounds(std::vector<std::string> rounds, double step) {
     if (const char* intro = std::getenv("AUTOPLAY_INTRO_SECONDS")) {
-        // The intro ignores every key until its video and typing are done, so just keep pressing Enter for a while.
-        // Presses that come after the intro are harmless: the weapon menu only reacts to 1 and 2.
         const double until = secondsSinceStart() + std::atof(intro);
-        logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressing Enter for " + intro + " s (the intro)");
-        while (secondsSinceStart() < until && !gameFinished) {
-            pressKey(SDLK_RETURN, false);
-            sleepSeconds(0.5);
+        if (usePad) {
+            // On a gamepad X is both Enter (intro) and key 1 (menus), so spamming it would also play a round.
+            // The intro takes about 10 s and is done by `intro` seconds, so wait that long and press X once.
+            logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " waiting " + intro + " s for the intro, then X once");
+            sleepSeconds(std::atof(intro));
+            if (!gameFinished) pressKey(SDLK_RETURN);
+        } else {
+            // The intro ignores every key until its video and typing are done, so just keep pressing Enter for a while.
+            // Presses that come after the intro are harmless: the weapon menu only reacts to 1 and 2.
+            logLine("[driver] t=" + std::to_string(secondsSinceStart()) + " pressing Enter for " + intro + " s (the intro)");
+            while (secondsSinceStart() < until && !gameFinished) {
+                pressKey(SDLK_RETURN, false);
+                sleepSeconds(0.5);
+            }
         }
     }
     sleepSeconds(step);   // give the game a moment to start up and reach its first menu
@@ -94,6 +116,7 @@ int main(int argc, char* argv[]) {
         rounds.push_back(round);
     }
 
+    usePad = std::getenv("AUTOPLAY_PAD") != nullptr;
     std::cout.setf(std::ios::unitbuf);   // flush the game's output at once, so nothing is lost if it gets killed
 
     std::thread player(playRounds, rounds, step);

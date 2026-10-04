@@ -5,6 +5,7 @@
 #include "GameState.h"
 #include "levels.h"
 #include "screens.h"
+#include "input.h"
 
 #include <memory> // Include the memory header for smart pointers
 #include <iostream> // Include the iostream header for input/output operations
@@ -27,7 +28,8 @@ int main(int argc, char* argv[]){
     u_int8_t MaxLevel = 3;
     
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER); // SDL_INIT_VIDEO for window, SDL_INIT_AUDIO for music, SDL_INIT_CONTROLLER for gamepad
+    Input::Init(); // use gamepad if available
     SDL_Window* window = SDL_CreateWindow
     ("Zelda-Link",
     SDL_WINDOWPOS_CENTERED,
@@ -115,14 +117,12 @@ int main(int argc, char* argv[]){
 //-----------------------------------------------------------------------------------------------------------------
         // Part 1: Input Handling 
         while(SDL_PollEvent(&event)){
+            Input::Translate(event, currentState); // convert event clicked by gamepad into keyboard press.
             if (event.type == SDL_QUIT){
                 isRunning = false;
             }
             else if(event.type == SDL_KEYDOWN){ // when anything on keyboard is click
-                if(playingClip != nullptr){
-                    playingClip -> Skip(); // skip the cutscene if any key is pressed
-                }
-                else if(currentState == Intro){
+                if(currentState == Intro){
                     bool introDone = introClip.Finished() && storyTime * typingSpeed >= UI::CountLetters(storyLines);
                     if(introDone && (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_SPACE)){
                         currentState = ChooseWeapon;
@@ -140,7 +140,7 @@ int main(int argc, char* argv[]){
                     
                 }
             
-                else if(currentState == ChooseEnemy){
+                else if(currentState == ChooseEnemy && MainPlayer -> TargetEnemy == nullptr && MainPlayer -> EquippedWeapon != nullptr){
                         if(event.key.keysym.sym == SDLK_1 && levelEnemies[currentLevel][0] -> isAlive){
                             MainPlayer -> TargetEnemy = levelEnemies[currentLevel][0].get();//.get() is used to get the address of the object that the smart pointer is managing, so that it can be assigned to the raw pointer variable EquippedWeapon in the Player class.
                             MainPlayer-> currentState = Player::DealDamage;
@@ -303,6 +303,7 @@ int main(int argc, char* argv[]){
     linkHitsStalfos.Free();
     bokobolinHitsLink.Free();
     stalfosHitsLink.Free();
+    Input::Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }

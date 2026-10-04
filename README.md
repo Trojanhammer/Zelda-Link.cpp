@@ -2,7 +2,7 @@
 
 <img src="assets/compressed/link-2x.png" alt="Pixel art of Link raising the Master Sword" width="130"> <img src="assets/compressed/bokobolin-2x.png" alt="Pixel art of Bokobolin wielding a wooden club" width="346"> <img src="assets/compressed/stalfos-2x.png" alt="Pixel art of Stalfos skeleton warrior" width="234">
 
-> **How this was built (AI use):** the mechanics and the physics (turns, movement, knockback, the recall replay, levels, the state machines) are written by me, by hand. This is not vibe coding: I discuss an idea with Claude, then write it myself until I understand it, and ask Claude to review it and point out mistakes so I can learn from them. The exceptions, written mostly with AI to move faster: the SDL2 drawing code in `src/sdl/` (text with a built-in pixel font, health bars and prompts, the intro and cutscene player, the screen layout) and the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules), `tools/extract_frames.sh` and `check-memory.sh`.
+> **How this was built (AI use):** the mechanics and the physics (turns, movement, knockback, the recall replay, levels, the state machines) are written by me, by hand. This is not vibe coding: I discuss an idea with Claude, then write it myself until I understand it, and ask Claude to review it and point out mistakes so I can learn from them. The exceptions, written mostly with AI to move faster: the SDL2 code in `src/sdl/` (text with a built-in pixel font, health bars and prompts, the intro and cutscene player, the screen layout, the gamepad input) and the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules), `tools/extract_frames.sh` and `check-memory.sh`.
 
 > **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. No plan to publicly release or distribute this as a playable game — any cross-platform builds are purely to learn the packaging process itself.
 
@@ -54,6 +54,16 @@ The game runs silently if `assets/audio/` isn't present locally — the backgrou
 
 The intro and the hit cutscenes are the `assets/*.mp4` clips, turned into numbered pictures plus their sound (`audio.ogg`) in `assets/frames/` by `tools/extract_frames.sh` (needs `ffmpeg`; SDL2 cannot play video). The background music pauses while a clip's sound plays. Without that folder the game still runs and just skips them.
 
+## Controls
+
+| | Keyboard | DualSense |
+|---|---|---|
+| Start the game (after the intro) | Enter | X |
+| Choose the first option (weapon, target) | 1 | X |
+| Choose the second option | 2 | O |
+
+The on-screen prompts show whichever you used last (`[1]` / `[2]` or `[X]` / `[O]`).
+
 ## Files
 
 All game code is in `src/`: `main.cpp` and the small shared headers sit at the top, the actors (`Entity`, `Player`, `Enemy`, `Weapon`) in `src/entities/`, and everything that draws with SDL2 (`ui`, `clip`, `screens`) in `src/sdl/`. The file names below leave out the folder, and they are relative to `src/` unless they start with `tools/`, `assets/` or say otherwise.
@@ -69,6 +79,7 @@ All game code is in `src/`: `main.cpp` and the small shared headers sit at the t
 | `ui.h/.cpp` | Text, health labels, the prompt bar and the game-over overlay, drawn with a small built-in 5×7 pixel font (no SDL_ttf, no font file) |
 | `clip.h/.cpp` | `Clip`: plays an animation stored as numbered pictures, picking the picture by elapsed seconds so it takes the same time at any frame rate, and plays the clip's sound with it (the music pauses meanwhile) |
 | `screens.h/.cpp` | `DrawScreens()`: draws a whole frame from one function: sprites, health labels, the prompts for each game state, the intro, the cutscenes, game over / you win |
+| `input.h/.cpp` | Gamepad input: a DualSense button is turned into the key press the game already understands (X = Enter in the intro and 1 in the menus, O = 2), and the prompts follow whichever the player used last |
 | `GameState.h`, `levels.h` | The big game phases (`enum GameState`) and the `LevelStats` table with each level's enemy stats, both moved out of `main.cpp` |
 | `main-sdl.cpp` (repo root) | Standalone SDL2 exploration file (window/renderer/event loop basics), separate from the actual game |
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
