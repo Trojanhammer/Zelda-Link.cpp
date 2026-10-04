@@ -18,6 +18,9 @@ Usage:
     python3 tools/autoplay.py --clips --step 25        play the hit cutscenes too (about 4 s each, so give each round more time)
     python3 tools/autoplay.py --fps 30 --shots 500     save a picture of the window every 500 ms into tools/build/shots/
     python3 tools/autoplay.py --pad                    press gamepad buttons (X = key 1 / Enter, O = key 2) instead of keys
+    python3 tools/autoplay.py --win                    play ALL levels with the best play (Master Sword then Ocarina Sword on
+                                                       one enemy, then on the other) and fail unless the game ends on the win
+                                                       screen. This is the test that catches "level 2 / 3 cannot be won"
 
 By default the test copy skips the intro and the hit cutscenes (it sets `showIntro` and `playAttackClips` to false), so a
 round is just the physics. The game code is looked up in <root>/src/ and every folder inside it (or in <root> if there is no src folder).
@@ -69,7 +72,9 @@ MARKER = "SDL_RenderPresent(renderer);"          # the per-frame instrumentation
 AFTER_LOOP_MARKER = "SDL_DestroyRenderer(renderer);"   # first line after the game loop: we log the final state here,
                                                        # because a `break;` skips the per-frame instrumentation
 INTRO_SECONDS = 16.0   # how long --intro keeps pressing Enter: the video is 6 s, then the story types for about 4 s, plus some spare
-TERMINAL_STATES = {"AllEnemyDead", "PlayerDie"}  # states that are allowed to end the game
+TERMINAL_STATES = {"AllEnemyDead", "PlayerDie"}
+WIN_STATE = "CompleteGame"                     # the YOU WIN screen
+WIN_ROUNDS = ["11", "21", "12", "22"] * 3      # per level: Master + Ocarina on the first enemy, then on the second; 3 levels  # states that are allowed to end the game
 
 INSTRUMENTATION = r'''
     {   // ---- inserted by tools/autoplay.py (this copy only, never your real main.cpp) ----
@@ -274,6 +279,7 @@ def main():
     parser.add_argument("--fps", type=float, default=0.0, help="cap the test copy at this many frames a second (default 0 = no cap, runs as fast as it can)")
     parser.add_argument("--intro", action="store_true", help=f"play the intro too (presses Enter for {INTRO_SECONDS:.0f} s before the first round)")
     parser.add_argument("--clips", action="store_true", help="play the hit cutscenes too (about 4 s each: give --step more seconds)")
+    parser.add_argument("--win", action="store_true", help="play all levels with the best play and fail unless the game reaches the win screen")
     parser.add_argument("--pad", action="store_true", help="press gamepad buttons instead of keys (X = key 1 and Enter, O = key 2)")
     parser.add_argument("--shots", type=int, metavar="MS", help="save a picture of the window every MS milliseconds into tools/build/shots/")
     args = parser.parse_args()
@@ -289,6 +295,10 @@ def main():
         idle_state = initial.group(1) if initial else states[0]   # fallback: main.cpp's literal starting state
 
     rounds = args.rounds
+    if args.win:
+        if rounds or args.start:
+            sys.exit("--win plays its own rounds: do not give rounds or --start with it")
+        rounds = WIN_ROUNDS
     if not rounds and not args.start:
         rounds = ["11"]
 
@@ -387,6 +397,9 @@ def main():
                 problems.append(f"enemy turn: living enemies {alive_enemies} should each attack once, but the attackers were {attackers} "
                                 "(is currentEnemyIndex advancing too far, or not at all?)")
             i = j
+    if args.win and WIN_STATE not in seen_states:
+        problems.append(f"the game never reached the win screen ({WIN_STATE}); it ended in {seen_states[-1] if seen_states else '?'}. "
+                        "Can every level be won with the best play (swords and health refilled, enough damage)?")
     if timed_out:
         problems.append("the game hung (had to be killed)")
     elif process.returncode != 0:

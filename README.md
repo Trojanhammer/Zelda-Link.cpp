@@ -2,7 +2,7 @@
 
 <img src="assets/compressed/link-2x.png" alt="Pixel art of Link raising the Master Sword" width="130"> <img src="assets/compressed/bokobolin-2x.png" alt="Pixel art of Bokobolin wielding a wooden club" width="346"> <img src="assets/compressed/stalfos-2x.png" alt="Pixel art of Stalfos skeleton warrior" width="234">
 
-> **How this was built (AI use):** the mechanics and the physics (turns, movement, knockback, the recall replay, levels, the state machines) are written by me, by hand. This is not vibe coding: I discuss an idea with Claude, then write it myself until I understand it, and ask Claude to review it and point out mistakes so I can learn from them. The exceptions, written mostly with AI to move faster: the SDL2 code in `src/sdl/` (text with a built-in pixel font, health bars and prompts, the intro and cutscene player, the screen layout, the gamepad input) and the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules), `tools/extract_frames.sh` and `check-memory.sh`.
+> **How this was built (AI use):** the mechanics and the physics (turns, movement, knockback, the recall replay, levels, the state machines) are written by me, by hand. This is not vibe coding: I discuss an idea with Claude, then write it myself until I understand it, and ask Claude to review it and point out mistakes so I can learn from them. The exceptions, written mostly with AI to move faster: the SDL2 code in `src/sdl/` (text with a built-in pixel font, health bars and prompts, the intro and cutscene player, the screen layout, the gamepad input) and the tooling: `tools/autoplay.py`, `tools/autoplay_driver.cpp` (an automated test that plays the game and checks rules), `tools/extract_frames.sh`, `tools/package_mac.py` and `check-memory.sh`.
 
 > **Disclaimer:** This is an unofficial fan project with no affiliation to Nintendo. *The Legend of Zelda* and its characters belong to Nintendo — this project is just inspired by them, built purely for personal learning and hobby purposes. No plan to publicly release or distribute this as a playable game — any cross-platform builds are purely to learn the packaging process itself.
 
@@ -23,7 +23,7 @@ Every mechanic goes through the same loop:
 
 Example: the turn flow started as `currentState` plus many bools (`isKnocked`, `isKnocking`, `isReturn`, ...). It worked, but the bugs kept coming from those two disagreeing, for instance one shared state that both the player and the enemy set and that only the enemy's check should have reacted to. The fix was one state per actor (`Entity::GameState`) instead of many bools shared across sides, so each entity's state can only ever be one thing at a time.
 
-The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability. There are 3 levels; the same two enemy types return each level with higher stats, built from one data table instead of separate hand-written variables per level.
+The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks one of two `Enemy` objects (`Bokobolin`, `Stalfos`) each turn, and enemies take their own turn back, cycling through living enemies and skipping dead ones, until either both enemies are defeated or Link runs out of health/durability. There are 3 levels; the same two enemy types return each level with higher stats, built from one data table instead of separate hand-written variables per level. The swords get stronger and Link gets more health every level, because without that the later levels cannot be won (see Status).
 
 **Current focus:** mechanics have to satisfy me before animation or other polish get added, so the intro, text and hit cutscenes only came once they did. Movement and the recall replay are both frame-rate independent (speed × time instead of a fixed amount per frame; the recall plays back by elapsed seconds). Next physics step: real overlap-based collision.
 
@@ -39,7 +39,7 @@ The core loop: a `Player` (Link) selects one of two `Weapon` objects and attacks
 - **State machines** — one `currentState` per entity instead of scattered bools; each side (player, enemy) checks and transitions its own state independently
 - **Data-driven design** — enemy stats per level live in one `LevelStats` table instead of a hand-written variable per level/enemy pair
 - **Frame-rate independence** — `Attack()`/`UpdateKnock()` moved from a fixed amount per frame to speed × `deltaTime`, and the recall replay stores a timestamp with every position and plays back by elapsed seconds, blending between the two nearest positions (checked with the autoplay script at 40 / 120 fps and unthrottled); learned the hard way that a stop-threshold has to compare a stable speed, not a displacement that shrinks with `deltaTime`, and that a one-shot state transition has to actually leave its own state, or it silently re-fires every single frame instead of once
-- **Automated testing** — a script that plays the game headless and checks rules every frame; running it unthrottled (tens of thousands of frames a second) is what actually surfaced the bugs above, they were far too fast to catch by eye
+- **Automated testing** — a script that plays the game headless and checks rules every frame; running it unthrottled (tens of thousands of frames a second) is what actually surfaced the bugs above, they were far too fast to catch by eye. A script only tests the path it is told to play: mine stopped at level 1, so it missed that levels 2 and 3 could not be won until `--win` made it play all three
 - **SDL2 fundamentals** — window/renderer setup, sprite drawing, background music, the event loop and why blocking it (e.g. `SDL_Delay`) breaks rendering on macOS
 
 ## Build
@@ -49,6 +49,16 @@ clang++ -std=c++17 $(find src -name '*.cpp') -Isrc -Isrc/entities -Isrc/sdl \
   -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE -L/opt/homebrew/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_mixer -Wl,-framework,Cocoa \
   -o game
 ```
+
+### macOS app
+
+```bash
+python3 tools/package_mac.py              # builds dist/ZeldaLink.app, without the music
+python3 tools/package_mac.py --with-music # also copies assets/audio/ in (copyrighted: for my own Mac only)
+open dist/ZeldaLink.app
+```
+
+It copies SDL2 and the libraries it needs into the app (including the SDL3 that Homebrew's SDL2 loads at start-up), so it runs on a Mac without Homebrew. Apple Silicon only, and the script checks its own result: the game must load SDL3 from the app, nothing from Homebrew, and answer when asked to quit. `dist/` is gitignored: it holds Nintendo's characters, so the app is for my own Mac and is not for uploading.
 
 The game runs silently if `assets/audio/` isn't present locally — the background music file is gitignored (copyrighted).
 
@@ -85,6 +95,7 @@ All game code is in `src/`: `main.cpp` and the small shared headers sit at the t
 | `notes.txt` | Personal study notes (English/Malay mixed) — memory layout, pointers vs references, stack vs heap |
 | `sdl-notes.txt` | Notes specifically on SDL2 fundamentals and V-Sync |
 | `tools/autoplay.py`, `tools/autoplay_driver.cpp` | Plays the real game headless by injecting key presses, prints every state change and checks rules. This is how the bugs get found (written with AI) |
+| `tools/package_mac.py` | Builds the game and wraps it, with its libraries, into `dist/ZeldaLink.app`, then checks the app starts and uses only its own libraries (written with AI) |
 | `tools/extract_frames.sh` | Turns `assets/*.mp4` into numbered JPEGs and an `audio.ogg` in `assets/frames/` for the intro and cutscenes |
 | `check-memory.sh` | Samples the running game's RAM once per second into `memory-log.csv` (written with AI) |
 | `TODO.md` | Worklist |
@@ -94,10 +105,14 @@ All game code is in `src/`: `main.cpp` and the small shared headers sit at the t
 | `assets/*.jpeg` | Original 2048×2048 character art, kept as source for the compressed sprites |
 | `assets/audio/` | Background music, local-only, gitignored (copyrighted) |
 
+## Limitations
+
+- The autoplay script only tests the key presses it is given. It finds nothing on a path it does not walk (it was blind to levels 2 and 3 until `--win`), and it can say whether the game ends in the right state but not whether the game is fair or fun.
+
 ## Future work
 
 - Real overlap-based collision
-- Package builds for Windows, macOS, and Linux
+- Package builds for Windows and Linux (macOS is done: `tools/package_mac.py`)
 - Long-shot goals: get this running on a jailbroken Wii and a jailbroken PS5
 
 ## Status
@@ -110,5 +125,7 @@ Active learning project — the commit history intentionally shows real bugs fou
 4. A per-entity state refactor that quietly broke an outer state's one-shot assumption, letting an enemy's turn re-trigger every frame instead of once
 5. A recall state that meant two different things depending on context, and crashed when both meanings collided in the same frame
 6. `Return()` deciding "arrived home" by exact float equality, which a decayed walk-back almost never lands on exactly
+
+7. A test that stopped at level 1. The autoplay script only played the first level, so nobody noticed that levels 2 and 3 could not be won: the swords and Link's health were never refilled (level 2 started with two broken swords, which is game over), and level 3's enemies had 230 health in total against 160 damage from four sword hits. It showed up when I played into level 2. The swords and health now grow every level, and `tools/autoplay.py --win` plays all three levels to the win screen (it fails on the code from before the fix).
 
 Each fix is written up with its cause and location in the commit message.
