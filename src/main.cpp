@@ -24,8 +24,8 @@ int main(int argc, char* argv[]){
     int currentEnemyIndex = 0;
     unsigned int turn = 0; // can be 0 and (+)
 
-    u_int8_t currentLevel = 0;
-    u_int8_t MaxLevel = 3;
+    uint8_t currentLevel = 0;
+    uint8_t MaxLevel = 3;
     
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER); // SDL_INIT_VIDEO for window, SDL_INIT_AUDIO for music, SDL_INIT_CONTROLLER for gamepad
