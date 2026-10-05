@@ -14,12 +14,13 @@
                 break;
             }
             else if (Recall[i].time > RecallClock && Recall[i-1].time < RecallClock){ 
-                float b = RecallClock - Recall[i-1].time;
-                float c = Recall[i].time - Recall[i-1].time;
-                float ratio = b/c;
-                posX = Recall[i-1].posX + (ratio * (Recall[i].posX - Recall[i-1].posX));
-                posY = Recall[i-1].posY + (ratio * (Recall[i].posY - Recall[i-1].posY));
-                break;
+                // Linear Interpolation(lerp) between two points to get the position of X and Y
+                const RecallPoint& PointBefore = Recall[i-1];
+                const RecallPoint& PointAfter = Recall[i];
+                float ratio = (RecallClock - PointBefore.time)/(PointAfter.time - PointBefore.time);
+                posX = PointBefore.posX + (ratio * (PointAfter.posX - PointBefore.posX));
+                posY = PointBefore.posY + (ratio * (PointAfter.posY - PointBefore.posY));
+                break; 
             }
 
         }
